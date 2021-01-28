@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
+config MTK_PLATFORM
+	string "MTK platform name"
+
 menu "Storage"
 source "drivers/misc/mediatek/pidmap/Kconfig"
 endmenu # Storage
