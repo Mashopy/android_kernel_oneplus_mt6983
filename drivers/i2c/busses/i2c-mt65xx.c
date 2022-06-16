@@ -27,6 +27,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
+#define I2C_CONFERR			(1 << 9)
 #define I2C_RS_TRANSFER			(1 << 4)
 #define I2C_ARB_LOST			(1 << 3)
 #define I2C_HS_NACKERR			(1 << 2)
@@ -45,6 +46,7 @@
 #define I2C_IO_CONFIG_OPEN_DRAIN	0x0003
 #define I2C_IO_CONFIG_PUSH_PULL		0x0000
 #define I2C_SOFT_RST			0x0001
+#define I2C_FSM_RST			0x0004
 #define I2C_HANDSHAKE_RST		0x0020
 #define I2C_FIFO_ADDR_CLR		0x0001
 #define I2C_HFIFO_ADDR_CLR		0x0002
@@ -98,6 +100,8 @@
 #define I2C_OFFSET_SCP			0x200
 #define I2C_CCU_INTR_EN         0x2
 #define I2C_MCU_INTR_EN         0x1
+#define I2C_FIFO_DATA_LEN_MASK	0x001f
+#define MAX_POLLING_CNT		10
 
 #define I2C_DRV_NAME		"i2c-mt65xx"
 
@@ -1126,6 +1130,7 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 	u16 restart_flag = 0;
 	u16 dma_sync = 0;
 	u16 data_size = 0;
+	u16 fifo_data_len = 0;
 	u32 reg_4g_mode;
 	u8 *ptr = NULL;
 	u8 *dma_rd_buf = NULL;
@@ -1133,6 +1138,7 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 	dma_addr_t rpaddr = 0;
 	dma_addr_t wpaddr = 0;
 	bool isDMA = false;
+	int i = 0;
 	int ret;
 
 	i2c->irq_stat = 0;
@@ -1182,7 +1188,7 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 		mtk_i2c_writew(i2c, addr_reg, OFFSET_SLAVE_ADDR);
 
 	/* Clear interrupt status */
-	mtk_i2c_writew(i2c, restart_flag | I2C_HS_NACKERR | I2C_ACKERR |
+	mtk_i2c_writew(i2c, restart_flag | I2C_CONFERR | I2C_HS_NACKERR | I2C_ACKERR |
 			    I2C_ARB_LOST | I2C_TRANSAC_COMP, OFFSET_INTR_STAT);
 
 	if (i2c->ch_offset_i2c)
@@ -1367,6 +1373,8 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 			writel((msgs + 1)->len, i2c->pdmabase + OFFSET_RX_LEN);
 		}
 
+		/* flush before sending DMA start */
+		mb();
 		writel(I2C_DMA_START_EN, i2c->pdmabase + OFFSET_EN);
 	} else if (i2c->op != I2C_MASTER_RD) {
 		data_size = msgs->len;
@@ -1384,13 +1392,28 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 		if (left_num >= 1)
 			start_reg |= I2C_RS_MUL_CNFG;
 	}
+	/* flush before sending i2c start */
+	mb();
+	if ((i2c->ch_offset_i2c == I2C_OFFSET_SCP) &&
+		(isDMA == false) && (i2c->op != I2C_MASTER_RD)) {
+		do {
+			fifo_data_len = mtk_i2c_readw(i2c, OFFSET_FIFO_STAT)
+				& I2C_FIFO_DATA_LEN_MASK;
+			if (msgs->len == fifo_data_len)
+				break;
+			i++;
+		} while (i < MAX_POLLING_CNT);
+		if (i == MAX_POLLING_CNT)
+			dev_info(i2c->dev, "I2C fifo status: 0x%x maybe not ready!\n",
+				fifo_data_len);
+	}
 	mtk_i2c_writew(i2c, start_reg, OFFSET_START);
 
 	ret = wait_for_completion_timeout(&i2c->msg_complete,
 					  i2c->adap.timeout);
 
 	/* Clear interrupt mask */
-	mtk_i2c_writew(i2c, ~(restart_flag | I2C_HS_NACKERR | I2C_ACKERR |
+	mtk_i2c_writew(i2c, ~(restart_flag | I2C_CONFERR | I2C_HS_NACKERR | I2C_ACKERR |
 			    I2C_ARB_LOST | I2C_TRANSAC_COMP), OFFSET_INTR_MASK);
 
 	if (isDMA == true) {
@@ -1424,6 +1447,9 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 
 	if (ret == 0) {
 		u16 start_reg = mtk_i2c_readw(i2c, OFFSET_START);
+		mtk_i2c_writew(i2c, 0, OFFSET_INTR_MASK);
+		if (i2c->ch_offset_i2c != 0)
+			mtk_i2c_writew_shadow(i2c, I2C_FSM_RST | I2C_SOFT_RST, OFFSET_SOFTRESET);
 		dev_info(i2c->dev, "addr: %x, transfer timeout\n", msgs->addr);
 		mtk_i2c_dump_reg(i2c);
 		if (i2c->ch_offset_i2c) {
