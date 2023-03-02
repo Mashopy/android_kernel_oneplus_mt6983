@@ -70,6 +70,33 @@ ifneq ($(KERNELRELEASE),)
     ifeq ($(CONFIG_MTK_COMBO), y)
         ccflags-y += -D CFG_CONNADP_BUILD_IN
     endif
+
+    # for mt66xx options
+    export BT_PLATFORM=6983
+
+    # for fmradio options
+    export BUILD_CONNAC2=true
+    export FM_CHIP_ID=6983
+    export FM_CHIP=mt6635
+    export FM_PLAT=connac2x
+    export CFG_BUILD_CONNAC2=$(BUILD_CONNAC2)
+    export CFG_FM_CHIP_ID=$(FM_CHIP_ID)
+    export CFG_FM_CHIP=$(FM_CHIP)
+    export CFG_FM_PLAT=$(FM_PLAT)
+
+    # for adaptor options
+    export CONNAC_VER=2_0
+    export WIFI_NAME=wmt_chrdev_wifi_connac2
+
+    # for gen4m options
+    export MTK_COMBO_CHIP=SOC7_0
+    export CONFIG_MTK_COMBO_WIFI_HIF=axi
+    export MTK_ANDROID_WMT=y
+    export MTK_ANDROID_EMI=y
+    export WLAN_CHIP_ID=6983
+    export WIFI_IP_SET=1
+    export MTK_WLAN_SERVICE=yes
+
     # Do build-in for Makefile checking
     # export CONFIG_WLAN_DRV_BUILD_IN=y
 
@@ -105,12 +132,6 @@ ifneq ($(KERNELRELEASE),)
         $(shell ln -s $(ABS_PATH_TO_WLAN_CHR_DRV) $(srctree)/$(src)/wmt_chrdev_wifi)
         $(shell ln -s $(ABS_PATH_TO_WLAN_DRV)     $(srctree)/$(src)/wlan_drv_gen4m)
 
-        # for gen4m options
-        export CONFIG_MTK_COMBO_WIFI_HIF=axi
-        export MTK_COMBO_CHIP=CONNAC
-        export WLAN_CHIP_ID=6765
-        export MTK_ANDROID_WMT=y
-
         # Do build-in for xxx.c checking
         subdir-ccflags-y += -D MTK_WCN_REMOVE_KERNEL_MODULE
         subdir-ccflags-y += -D MTK_WCN_BUILT_IN_DRIVER
@@ -118,6 +139,16 @@ ifneq ($(KERNELRELEASE),)
         obj-y += wmt_chrdev_wifi/
         obj-y += wlan_drv_gen4m/
     endif
+
+    obj-$(CONFIG_MTK_COMBO_WIFI) += wlan/adaptor/
+    obj-$(CONFIG_MTK_COMBO_CHIP_CONSYS_6983) += wlan/core/gen4m/
+    obj-$(CONFIG_MTK_BTIF) += bt/mt66xx/btif/
+    obj-$(CONFIG_MTK_COMBO_GPS) += gps/data_link/plat/v050/
+    obj-$(CONFIG_MTK_COMBO_GPS) += gps/gps_pwr/
+    obj-$(CONFIG_MTK_COMBO_GPS) += gps/gps_scp/
+    obj-$(CONFIG_MTK_FMRADIO) += fmradio/
+    obj-$(CONFIG_MTK_COMBO) += connfem/
+    obj-$(CONFIG_MTK_COMBO) += conninfra/
 
 # Otherwise we were called directly from the command line;
 # invoke the kernel build system.
