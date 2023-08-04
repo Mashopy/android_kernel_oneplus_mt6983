@@ -8,15 +8,15 @@
 
 #include <linux/alarmtimer.h>
 #include <linux/reboot.h>
-#include "../../../../kernel-5.10/drivers/power/supply/charger_class.h"
-#include "../../../../kernel-5.10/drivers/power/supply/adapter_class.h"
-#include "../../../../kernel-5.10/drivers/power/supply/mtk_charger_algorithm_class.h"
+#include "../../supply/charger_class.h"
+#include "../../supply/adapter_class.h"
+#include "../../supply/mtk_charger_algorithm_class.h"
 #include <linux/power_supply.h>
-#include "../../../../kernel-5.10/drivers/power/supply/mtk_smartcharging.h"
+#include "../../supply/mtk_smartcharging.h"
 
 #ifdef CONFIG_OPLUS_MTK_DRM_GKI_NOTIFY_CHG
-#include "../../../../kernel-5.10/drivers/gpu/drm/mediatek/mediatek_v2/mtk_panel_ext.h"
-#include "../../../../kernel-5.10/drivers/gpu/drm/mediatek/mediatek_v2/mtk_disp_notify.h"
+#include "../../../gpu/drm/mediatek/mediatek_v2/mtk_panel_ext.h"
+#include "../../../gpu/drm/mediatek/mediatek_v2/mtk_disp_notify.h"
 #endif
 
 #include "../../../base/kernelFwUpdate/kernelFwUpdate.h"
