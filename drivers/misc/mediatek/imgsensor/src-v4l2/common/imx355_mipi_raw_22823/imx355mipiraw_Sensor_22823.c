@@ -65,7 +65,7 @@
 #define V_FOV 49
 
 #define IMX355_EEPROM_SLAVE_ADDRESS 0xA2
-extern Eeprom_DistortionParamsRead(enum IMGSENSOR_SENSOR_IDX sensor_idx, kal_uint16 slaveAddr);
+extern int Eeprom_DistortionParamsRead(enum IMGSENSOR_SENSOR_IDX sensor_idx, kal_uint16 slaveAddr);
 
 static DEFINE_SPINLOCK(imgsensor_drv_lock);
 #define OTP_SIZE    0x4000

@@ -183,7 +183,7 @@ extern int mp2650_driver_init(void);
 extern int bq27541_driver_init(void);
 extern int adapter_ic_init(void);
 extern int hl7227_driver_init(void);
-extern nu1619_driver_init(void);
+extern int nu1619_driver_init(void);
 void oplus_ccdetect_disable(void);
 void oplus_ccdetect_enable(void);
 void oplus_wake_up_usbtemp_thread(void);
@@ -4359,7 +4359,7 @@ static bool oplus_chg_svooc_30w_adapter(struct oplus_voocphy_manager *chip)
 
 static void oplus_chg_choose_gauge_curve(int index_curve)
 {
-	static last_curve_index = -1;
+	static int last_curve_index = -1;
 	int target_index_curve = -1;
 	bool svooc_30w_adapter = false;
 
@@ -6090,7 +6090,7 @@ static int oplus_chg_usbtemp_parse_dt(struct oplus_chg_chip *chip)
 	return rc;
 }
 
-static bool oplus_mtk_hv_flashled_check_is_gpio()
+static bool oplus_mtk_hv_flashled_check_is_gpio(void)
 {
 	if (gpio_is_valid(mtkhv_flashled_pinctrl.chgvin_gpio) && gpio_is_valid(mtkhv_flashled_pinctrl.pmic_chgfunc_gpio)) {
 		return true;

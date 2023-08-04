@@ -1017,7 +1017,7 @@ EXPORT_SYMBOL(last_backlight);
 bool pwm_power_on = false;
 EXPORT_SYMBOL(pwm_power_on);
 /*#endif*/
-mtk_drm_setbacklight(struct drm_crtc *crtc, unsigned int level, bool atomic)
+int mtk_drm_setbacklight(struct drm_crtc *crtc, unsigned int level, bool atomic)
 {
 	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 	struct cmdq_pkt *cmdq_handle;

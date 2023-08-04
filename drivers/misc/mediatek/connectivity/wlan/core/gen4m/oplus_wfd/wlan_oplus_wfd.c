@@ -85,12 +85,12 @@ static void remove_he_ie_from_probe_request(int remove) {
     debug("set remove he ie =%d", remove);
 }
 
-static struct wireless_dev * get_wdev_sta()
+static struct wireless_dev * get_wdev_sta(void)
 {
     return s_hdd_ctx;
 }
 
-static struct ADAPTER * get_adapter() {
+static struct ADAPTER * get_adapter(void) {
     struct wireless_dev *wdev_sta = NULL;
     struct GLUE_INFO *prGlueInfo = NULL;
     struct ADAPTER *prAdapter = NULL;

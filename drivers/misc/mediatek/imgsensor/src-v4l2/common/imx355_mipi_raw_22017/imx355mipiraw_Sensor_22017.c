@@ -74,7 +74,7 @@ extern unsigned char imx355_get_module_id(void);
 
 static kal_uint8 stereo_data[CALI_DATA_SLAVE_LENGTH] = {0};
 
-extern Eeprom_DistortionParamsRead(enum IMGSENSOR_SENSOR_IDX sensor_idx, kal_uint16 slaveAddr);
+extern int Eeprom_DistortionParamsRead(enum IMGSENSOR_SENSOR_IDX sensor_idx, kal_uint16 slaveAddr);
 
 static DEFINE_SPINLOCK(imgsensor_drv_lock);
 

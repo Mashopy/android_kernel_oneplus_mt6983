@@ -43,7 +43,7 @@ static struct device_info *g_dev_info = NULL;
 static int reinit_aboard_id(struct device *dev,
 			    struct manufacture_info *info);
 
-static uint8_t hw_mask_check()
+static uint8_t hw_mask_check(void)
 {
 	return hw_mask_id;
 }

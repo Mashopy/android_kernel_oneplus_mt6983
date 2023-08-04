@@ -42,7 +42,7 @@ static void ssc_interactive_lcdinfo_to_hal(uint8_t type, uint16_t val)
 	ssc_interactive_set_fifo(type, val);
 }
 
-static void ssc_interactive_lcdinfo_to_scp()
+static void ssc_interactive_lcdinfo_to_scp(void)
 {
 	struct ssc_interactive *ssc_cxt = g_ssc_cxt;
 	if (ssc_cxt && ssc_cxt->a_info.senstype != 0) {
@@ -268,7 +268,7 @@ static void parse_br_level_info_dts(struct device_node *ch_node)
 	}
 }
 
-static int ssc_interactive_parse_dts()
+static int ssc_interactive_parse_dts(void)
 {
 	int ret = 0;
 	int report_brightness = 0;

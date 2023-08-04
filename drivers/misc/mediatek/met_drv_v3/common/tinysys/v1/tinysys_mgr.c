@@ -313,19 +313,19 @@ int ondiemet_log_manager_uninit(struct device *dev)
 }
 
 
-void ondiemet_log_manager_start()
+void ondiemet_log_manager_start(void)
 {
 	tinysys_log_manager_start();
 }
 
 
-void ondiemet_log_manager_stop()
+void ondiemet_log_manager_stop(void)
 {
 	tinysys_log_manager_stop();
 }
 
 
-void ondiemet_start()
+void ondiemet_start(void)
 {
 #ifdef MET_SSPM
 	if (met_sspm_api_ready && met_scmi_api_ready) {
@@ -354,7 +354,7 @@ void ondiemet_start()
 #endif
 }
 
-void ondiemet_stop()
+void ondiemet_stop(void)
 {
 #ifdef MET_SSPM
 	if (met_sspm_api_ready && met_scmi_api_ready) {
@@ -377,7 +377,7 @@ void ondiemet_stop()
 #endif
 }
 
-void ondiemet_extract()
+void ondiemet_extract(void)
 {
 #ifdef MET_SSPM
 	if (met_sspm_api_ready && met_scmi_api_ready) {
@@ -1094,7 +1094,7 @@ static int _create_mcupm_node(struct kobject *parent)
 }
 
 
-static void _remove_mcupm_node()
+static void _remove_mcupm_node(void)
 {
 	if (_mcupm_kobj != NULL) {
 		sysfs_remove_file(_mcupm_kobj, &_attr_mcupm_buffer_size.attr);
