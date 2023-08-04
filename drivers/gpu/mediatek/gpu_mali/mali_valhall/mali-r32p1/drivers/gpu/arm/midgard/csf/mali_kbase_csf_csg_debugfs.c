@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -24,6 +24,11 @@
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <csf/mali_kbase_csf_trace_buffer.h>
+
+#include <mali_kbase_sync.h>
+#include <csf/mali_kbase_csf_kcpu_debugfs.h>
+#include <csf/mali_kbase_csf_cpu_queue_debugfs.h>
+#include <csf/mali_kbase_csf.h>
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 #include "mali_kbase_csf_tl_reader.h"
@@ -272,8 +277,8 @@ static void kbasep_csf_scheduler_dump_active_group(struct seq_file *file,
 		kbase_csf_firmware_csg_input_mask(ginfo, CSG_REQ,
 				~kbase_csf_firmware_csg_output(ginfo, CSG_ACK),
 				CSG_REQ_STATUS_UPDATE_MASK);
-		kbase_csf_scheduler_spin_unlock(kbdev, flags);
 		kbase_csf_ring_csg_doorbell(kbdev, group->csg_nr);
+		kbase_csf_scheduler_spin_unlock(kbdev, flags);
 
 		remaining = wait_event_timeout(kbdev->csf.event_wait,
 			!((kbase_csf_firmware_csg_input_read(ginfo, CSG_REQ) ^

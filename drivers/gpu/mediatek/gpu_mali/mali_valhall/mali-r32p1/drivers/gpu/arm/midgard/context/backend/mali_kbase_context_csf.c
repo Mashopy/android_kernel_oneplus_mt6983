@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -136,6 +136,8 @@ struct kbase_context *kbase_create_context(struct kbase_device *kbdev,
 	kctx->api_version = api_version;
 	kctx->filp = filp;
 	kctx->create_flags = flags;
+
+	memcpy(kctx->comm, current->comm, sizeof(current->comm));
 
 	if (is_compat)
 		kbase_ctx_flag_set(kctx, KCTX_COMPAT);

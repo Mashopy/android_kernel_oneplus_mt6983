@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -281,10 +281,10 @@ static const struct kbase_device_init dev_init[] = {
 	  "GPU hwcnt backend creation failed" },
 	{ kbase_device_hwcnt_context_init, kbase_device_hwcnt_context_term,
 	  "GPU hwcnt context initialization failed" },
-	{ kbase_backend_late_init, kbase_backend_late_term,
-	  "Late backend initialization failed" },
 	{ kbase_csf_early_init, kbase_csf_early_term,
 	  "Early CSF initialization failed" },
+	{ kbase_backend_late_init, kbase_backend_late_term,
+	  "Late backend initialization failed" },
 	{ NULL, kbase_device_firmware_hwcnt_term, NULL },
 #ifdef MALI_KBASE_BUILD
 	{ kbase_device_debugfs_init, kbase_device_debugfs_term,
@@ -322,7 +322,6 @@ static void kbase_device_term_partial(struct kbase_device *kbdev,
 
 void kbase_device_term(struct kbase_device *kbdev)
 {
-	kbdev->csf.mali_file_inode = NULL;
 	kbase_device_term_partial(kbdev, ARRAY_SIZE(dev_init));
 	kbase_mem_halt(kbdev);
 }

@@ -13,16 +13,30 @@
 #include <mtk_gpufreq.h>
 #if IS_ENABLED(CONFIG_MTK_GPU_SWPM_SUPPORT)
 #include <mtk_gpu_power_sspm_ipi.h>
+#include <platform/mtk_mfg_counter.h>
 #endif
 #include <ged_dvfs.h>
 #if IS_ENABLED(CONFIG_PROC_FS)
 #include <linux/proc_fs.h>
 #if IS_ENABLED(CONFIG_MALI_MTK_MEM_TRACK)
 #include <device/mali_kbase_device.h>
+#include <linux/delay.h>
 #endif
 #endif
 #if IS_ENABLED(CONFIG_MALI_MTK_DEVFREQ)
 #include "mtk_gpu_devfreq_governor.h"
+#endif
+#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
+#include "mtk_platform_debug.h"
+#endif
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_OSVELTE)
+#include <linux/proc_fs.h>
+#include "sys-memstat.h"
+#include "common.h"
+#include "memstat.h"
+#endif /* CONFIG_OPLUS_FEATURE_MM_OSVELTE */
+#if IS_ENABLED(CONFIG_MALI_MTK_MEM_TRACK)
+extern unsigned int (*mtk_get_gpu_memory_usage_fp)(void);
 #endif
 
 static bool mfg_powered;
@@ -30,6 +44,9 @@ static DEFINE_MUTEX(mfg_pm_lock);
 static struct kbase_device *mali_kbdev;
 #if IS_ENABLED(CONFIG_PROC_FS)
 static struct proc_dir_entry *mtk_mali_root;
+#endif
+#if IS_ENABLED(CONFIG_MALI_MTK_MEM_TRACK)
+static DEFINE_MUTEX(memtrack_lock);
 #endif
 
 struct kbase_device *mtk_common_get_kbdev(void)
@@ -54,6 +71,13 @@ void mtk_common_pm_mfg_idle(void)
 	mutex_lock(&mfg_pm_lock);
 	mfg_powered = false;
 	mutex_unlock(&mfg_pm_lock);
+}
+
+void mtk_common_debug_dump(void)
+{
+#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
+	mtk_common_debug_dump_status();
+#endif
 }
 
 int mtk_common_gpufreq_bringup(void)
@@ -99,6 +123,14 @@ int mtk_common_ged_dvfs_get_last_commit_idx(void)
 #endif
 }
 
+#if IS_ENABLED(CONFIG_MALI_MTK_MEM_TRACK)
+static unsigned int mtk_common_gpu_memory_usage(void)
+{
+	unsigned int used_pages = atomic_read(&(mali_kbdev->memdev.used_pages));
+	return used_pages * 4096;
+}
+#endif
+
 #if IS_ENABLED(CONFIG_PROC_FS)
 static int mtk_common_gpu_utilization_show(struct seq_file *m, void *v)
 {
@@ -133,33 +165,44 @@ DEFINE_PROC_SHOW_ATTRIBUTE(mtk_common_gpu_utilization);
 static int mtk_common_gpu_memory_show(struct seq_file *m, void *v)
 {
 #if IS_ENABLED(CONFIG_MALI_MTK_MEM_TRACK)
-	struct list_head *entry;
-	const struct list_head *kbdev_list;
+	struct kbase_device *kbdev = (struct kbase_device *)mtk_common_get_kbdev();
+	struct kbase_context *kctx;
+	unsigned int trylock_count = 0;
 
-	kbdev_list = kbase_device_get_list();
-	list_for_each(entry, kbdev_list) {
-		struct kbase_device *kbdev = NULL;
-		struct kbase_context *kctx;
+	if (IS_ERR_OR_NULL(kbdev))
+		return -1;
 
-		kbdev = list_entry(entry, struct kbase_device, entry);
-		/* output the total memory usage and cap for this device */
-		seq_printf(m, "%-16s  %10u\n",
-				kbdev->devname,
-				atomic_read(&(kbdev->memdev.used_pages)));
-		mutex_lock(&kbdev->kctx_list_lock);
-		list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
-			/* output the memory usage and cap for each kctx
-			* opened on this device
-			*/
-			seq_printf(m, "  %s-0x%p %10u %10u\n",
-				"kctx",
-				kctx,
-				atomic_read(&(kctx->used_pages)),
-				kctx->tgid);
+	lockdep_off();
+
+	mutex_lock(&memtrack_lock);
+	while (!mutex_trylock(&kbdev->kctx_list_lock)) {
+		if (trylock_count > 3) {
+			pr_info("[%s] lock held, bypass memory usage query", __func__);
+			seq_printf(m, "<INVALID>");
+			goto out_lock_held;
 		}
-		mutex_unlock(&kbdev->kctx_list_lock);
+		trylock_count ++;
+		udelay(10);
 	}
-	kbase_device_put_list(kbdev_list);
+
+	/* output the total memory usage */
+	seq_printf(m, "%-16s  %10u\n",
+	           kbdev->devname,
+	           atomic_read(&(kbdev->memdev.used_pages)));
+	list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
+		/* output the memory usage and cap for each kctx */
+		seq_printf(m, "  %s-0x%p %10u %10u\n",
+		           "kctx",
+		           kctx,
+		           atomic_read(&(kctx->used_pages)),
+		           kctx->tgid);
+	}
+	mutex_unlock(&kbdev->kctx_list_lock);
+
+out_lock_held:
+	mutex_unlock(&memtrack_lock);
+
+	lockdep_on();
 #else
 	seq_puts(m, "GPU mem_profile doesn't be enabled\n");
 #endif
@@ -168,8 +211,87 @@ static int mtk_common_gpu_memory_show(struct seq_file *m, void *v)
 }
 DEFINE_PROC_SHOW_ATTRIBUTE(mtk_common_gpu_memory);
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_OSVELTE)
+static int mali_procinfo_show(struct seq_file *s, void *unused)
+{
+	return mtk_common_gpu_memory_show(s, unused);
+}
+DEFINE_PROC_SHOW_ATTRIBUTE(mali_procinfo);
+
+long read_mali_mem_usage(enum mtrack_subtype type)
+{
+	struct kbase_device *kbdev = (struct kbase_device *)mtk_common_get_kbdev();
+	unsigned long sz = 0;
+
+	if (IS_ERR_OR_NULL(kbdev))
+		return 0;
+
+	if (type == MTRACK_GPU_TOTAL)
+		sz = atomic_read(&(kbdev->memdev.used_pages));
+
+	return sz;
+}
+
+void dump_mali_usage_stat(bool verbose)
+{
+	struct kbase_device *kbdev = (struct kbase_device *)mtk_common_get_kbdev();
+	struct kbase_context *kctx;
+
+	if (IS_ERR_OR_NULL(kbdev))
+		return;
+
+	osvelte_info("======= %s\n", __func__);
+	osvelte_info("%16s %5s %s\n", "comm", "pid", "size");
+
+	mutex_lock(&kbdev->kctx_list_lock);
+	list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
+		struct task_struct *task;
+		rcu_read_lock();
+		task = find_task_by_vpid(kctx->tgid);
+		osvelte_info("%16s %5u %u\n",
+			     task ? task->comm : "[null task]",
+			     kctx->tgid,
+			     K(atomic_read(&(kctx->used_pages))));
+		rcu_read_unlock();
+	}
+	mutex_unlock(&kbdev->kctx_list_lock);
+}
+
+long read_pid_mali_mem_usage(enum mtrack_subtype mtype, pid_t pid)
+{
+	struct kbase_device *kbdev = (struct kbase_device *)mtk_common_get_kbdev();
+	struct kbase_context *kctx;
+	unsigned long sz = 0;
+
+	if (IS_ERR_OR_NULL(kbdev))
+		return 0;
+
+	mutex_lock(&kbdev->kctx_list_lock);
+	list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
+		if (kctx->tgid == pid) {
+			sz = atomic_read(&(kctx->used_pages));
+			break;
+		}
+	}
+	mutex_unlock(&kbdev->kctx_list_lock);
+
+	return sz;
+}
+
+static struct mtrack_debugger mali_mtrack_debugger = {
+	.mem_usage = read_mali_mem_usage,
+	.pid_mem_usage = read_pid_mali_mem_usage,
+	.dump_usage_stat = dump_mali_usage_stat,
+};
+#endif /* CONFIG_OPLUS_FEATURE_MM_OSVELTE */
+
 void mtk_common_procfs_init(void)
 {
+	struct kbase_device *kbdev = (struct kbase_device *)mtk_common_get_kbdev();
+
+	if (IS_ERR_OR_NULL(kbdev))
+		return;
+
   	mtk_mali_root = proc_mkdir("mtk_mali", NULL);
   	if (!mtk_mali_root) {
   		pr_info("cannot create /proc/%s\n", "mtk_mali");
@@ -177,16 +299,34 @@ void mtk_common_procfs_init(void)
   	}
 	proc_create("utilization", 0444, mtk_mali_root, &mtk_common_gpu_utilization_proc_ops);
 	proc_create("gpu_memory", 0444, mtk_mali_root, &mtk_common_gpu_memory_proc_ops);
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_OSVELTE)
+	register_mtrack_debugger(MTRACK_GPU, &mali_mtrack_debugger);
+	register_mtrack_procfs(MTRACK_GPU, "procinfo", 0444,
+			       &mali_procinfo_proc_ops, NULL);
+#endif /* CONFIG_OPLUS_FEATURE_MM_OSVELTE */
 }
 
 void mtk_common_procfs_exit(void)
 {
+	struct kbase_device *kbdev = (struct kbase_device *)mtk_common_get_kbdev();
+
+	if (IS_ERR_OR_NULL(kbdev))
+		return;
+
 	mtk_mali_root = NULL;
 	remove_proc_entry("utilization", mtk_mali_root);
 	remove_proc_entry("gpu_memory", mtk_mali_root);
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_OSVELTE)
+	unregister_mtrack_debugger(MTRACK_GPU, &mali_mtrack_debugger);
+	unregister_mtrack_procfs(MTRACK_GPU, "procinfo");
+#endif /* CONFIG_OPLUS_FEATURE_MM_OSVELTE */
+
 	remove_proc_entry("mtk_mali", NULL);
 }
 #endif
+
 
 int mtk_common_device_init(struct kbase_device *kbdev)
 {
@@ -210,19 +350,27 @@ int mtk_common_device_init(struct kbase_device *kbdev)
 #if IS_ENABLED(CONFIG_MALI_MIDGARD_DVFS) && IS_ENABLED(CONFIG_MALI_MTK_DVFS_POLICY)
 #if IS_ENABLED(CONFIG_MALI_MTK_DVFS_LOADING_MODE)
 	ged_dvfs_cal_gpu_utilization_ex_fp = mtk_common_cal_gpu_utilization_ex;
+	mtk_notify_gpu_freq_change_fp = MTKGPUFreq_change_notify;
 #else
 	ged_dvfs_cal_gpu_utilization_fp = mtk_common_cal_gpu_utilization;
 #endif
 	ged_dvfs_gpu_freq_commit_fp = mtk_common_ged_dvfs_commit;
+	ged_dvfs_set_gpu_core_mask_fp = mtk_set_core_mask;
 #endif
-
+#if IS_ENABLED(CONFIG_MALI_MTK_MEM_TRACK)
+	mtk_get_gpu_memory_usage_fp = mtk_common_gpu_memory_usage;
+#endif
+#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
+	mtk_gpu_fence_debug_dump_fp = mtk_common_gpu_fence_debug_dump;
+	mtk_common_debug_init();
+#endif
 #if IS_ENABLED(CONFIG_MALI_MTK_DEVFREQ)
 	mtk_common_devfreq_init();
 #endif
 #if IS_ENABLED(CONFIG_MTK_GPU_SWPM_SUPPORT)
 	MTKGPUPower_model_init();
+	mtk_mfg_counter_init();
 #endif
-
 
 	return 0;
 }
@@ -243,17 +391,23 @@ void mtk_common_device_term(struct kbase_device *kbdev)
 #if IS_ENABLED(CONFIG_MALI_MIDGARD_DVFS) && IS_ENABLED(CONFIG_MALI_MTK_DVFS_POLICY)
 #if IS_ENABLED(CONFIG_MALI_MTK_DVFS_LOADING_MODE)
 	ged_dvfs_cal_gpu_utilization_ex_fp = NULL;
+	mtk_notify_gpu_freq_change_fp = NULL;
 #else
 	ged_dvfs_cal_gpu_utilization_fp = NULL;
 #endif
 	ged_dvfs_gpu_freq_commit_fp = NULL;
 #endif
-
+#if IS_ENABLED(CONFIG_MALI_MTK_MEM_TRACK)
+	mtk_get_gpu_memory_usage_fp = NULL;
+#endif
+#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
+	mtk_gpu_fence_debug_dump_fp = NULL;
+	mtk_common_debug_term();
+#endif
 #if IS_ENABLED(CONFIG_MALI_MTK_DEVFREQ)
 	mtk_common_devfreq_term();
 #endif
 #if IS_ENABLED(CONFIG_MTK_GPU_SWPM_SUPPORT)
 	MTKGPUPower_model_destroy();
 #endif
-
 }

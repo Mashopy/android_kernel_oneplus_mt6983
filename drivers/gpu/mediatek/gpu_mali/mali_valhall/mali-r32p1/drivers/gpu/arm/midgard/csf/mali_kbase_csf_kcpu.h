@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
@@ -47,9 +47,10 @@ struct kbase_kcpu_command_import_info {
  * struct kbase_kcpu_command_fence_info - Structure which holds information
  *		about the fence object enqueued in the kcpu command queue
  *
- * @fence_cb:   Fence callback
- * @fence:      Fence
- * @kcpu_queue: kcpu command queue
+ * @fence_cb:      Fence callback
+ * @fence:         Fence
+ * @kcpu_queue:    kcpu command queue
+ * @fence_has_force_signaled:	fence has forced signaled after fence timeouted
  */
 struct kbase_kcpu_command_fence_info {
 #if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
@@ -60,6 +61,7 @@ struct kbase_kcpu_command_fence_info {
 	struct dma_fence *fence;
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) */
 	struct kbase_kcpu_command_queue *kcpu_queue;
+	bool fence_has_force_signaled;
 };
 
 /**
@@ -117,6 +119,8 @@ struct kbase_kcpu_command_cqs_set_operation_info {
  * @signaled:	Bit array used to report the status of the CQS wait objects.
  *              1 is signaled, 0 otherwise.
  * @nr_objs:	Number of CQS objects in the array.
+ * @inherit_err_flags: Bit-pattern for CQSs in the array who's error field is to
+ *                     be used as the source to import into the queue's error-state
  */
 struct kbase_kcpu_command_cqs_wait_operation_info {
 	struct base_cqs_wait_operation_info *objs;
@@ -277,11 +281,16 @@ struct kbase_kcpu_command {
  *				or without errors since last cleaned.
  * @jit_blocked:		Used to keep track of command queues blocked
  *				by a pending JIT allocation command.
+ * @fence_timeout:		Timer used to detect the fence wait timeout.
  */
 struct kbase_kcpu_command_queue {
 	struct kbase_context *kctx;
 	struct kbase_kcpu_command commands[KBASEP_KCPU_QUEUE_SIZE];
 	struct work_struct work;
+	struct work_struct force_signal_work;
+#ifdef CONFIG_MALI_FENCE_DEBUG
+	struct work_struct timeout_work;
+#endif /* CONFIG_MALI_FENCE_DEBUG */
 	u8 start_offset;
 	u8 id;
 	u16 num_pending_cmds;
@@ -293,6 +302,18 @@ struct kbase_kcpu_command_queue {
 	bool command_started;
 	struct list_head jit_blocked;
 	bool has_error;
+#ifdef CONFIG_MALI_FENCE_DEBUG
+	struct timer_list fence_timeout;
+#endif /* CONFIG_MALI_FENCE_DEBUG */
+	struct timer_list fence_signal_timeout;
+	atomic_t fence_signal_pending_cnt;
+#if IS_ENABLED(CONFIG_MALI_MTK_KCPU_DEBUG)
+	bool pending_cmds_timer_active;
+	u64 pending_cmd_prev_offset;
+	struct workqueue_struct *cmds_timeout_wq;
+	struct work_struct cmds_timeout_work;
+	struct timer_list pending_cmds_timer;
+#endif /* CONFIG_MALI_MTK_KCPU_DEBUG */
 };
 
 /**
@@ -353,4 +374,5 @@ int kbase_csf_kcpu_queue_context_init(struct kbase_context *kctx);
  */
 void kbase_csf_kcpu_queue_context_term(struct kbase_context *kctx);
 
+bool kbase_kcpu_command_fence_has_force_signaled(struct kbase_kcpu_command_fence_info *fence_info);
 #endif /* _KBASE_CSF_KCPU_H_ */

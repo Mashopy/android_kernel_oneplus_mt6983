@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
@@ -298,6 +298,8 @@ static inline struct kbase_mem_phy_alloc *kbase_mem_phy_alloc_put(struct kbase_m
  *          that triggered incremental rendering by growing too much.
  * @rbtree:          Backlink to the red-black tree of memory regions.
  * @start_pfn:       The Page Frame Number in GPU virtual address space.
+ * @user_data:       The address of GPU command queue when VA region represents
+ *                   a ring buffer.
  * @nr_pages:        The size of the region in pages.
  * @initial_commit:  Initial commit, for aligning the start address and
  *                   correctly growing KBASE_REG_TILER_ALIGN_TOP regions.
@@ -312,6 +314,8 @@ static inline struct kbase_mem_phy_alloc *kbase_mem_phy_alloc_put(struct kbase_m
  * @jit_usage_id: The last just-in-time memory usage ID for this region.
  * @jit_bin_id:   The just-in-time memory bin this region came from.
  * @va_refcnt:    Number of users of this region. Protected by reg_lock.
+ * @no_user_free_refcnt:    Number of users that want to prevent the region from
+ *                          being freed by userspace.
  * @heap_info_gpu_addr: Pointer to an object in GPU memory defining an end of
  *                      an allocated region
  *                      The object can be one of:
@@ -335,6 +339,7 @@ struct kbase_va_region {
 	struct list_head link;
 	struct rb_root *rbtree;
 	u64 start_pfn;
+	void *user_data;
 	size_t nr_pages;
 	size_t initial_commit;
 	size_t threshold_pages;
@@ -417,10 +422,7 @@ struct kbase_va_region {
 #define KBASE_REG_RESERVED_BIT_23   (1ul << 23)
 #endif /* !MALI_USE_CSF */
 
-/* Whilst this flag is set the GPU allocation is not supposed to be freed by
- * user space. The flag will remain set for the lifetime of JIT allocations.
- */
-#define KBASE_REG_NO_USER_FREE      (1ul << 24)
+/* Bit 24 is currently unused and is available for use for a new flag */
 
 /* Memory has permanent kernel side mapping */
 #define KBASE_REG_PERMANENT_KERNEL_MAPPING (1ul << 25)
@@ -487,6 +489,7 @@ struct kbase_va_region {
 	struct list_head jit_node;
 	u16 jit_usage_id;
 	u8 jit_bin_id;
+
 #if MALI_JIT_PRESSURE_LIMIT_BASE
 	/* Pointer to an object in GPU memory defining an end of an allocated
 	 * region
@@ -515,7 +518,23 @@ struct kbase_va_region {
 #endif /* MALI_JIT_PRESSURE_LIMIT_BASE */
 
 	int    va_refcnt;
+	int no_user_free_refcnt;
 };
+
+/**
+ * kbase_is_ctx_reg_zone - determine whether a KBASE_REG_ZONE_<...> is for a
+ *                         context or for a device
+ * @zone_bits: A KBASE_REG_ZONE_<...> to query
+ *
+ * Return: True if the zone for @zone_bits is a context zone, False otherwise
+ */
+static inline bool kbase_is_ctx_reg_zone(unsigned long zone_bits)
+{
+	WARN_ON((zone_bits & KBASE_REG_ZONE_MASK) != zone_bits);
+	return (zone_bits == KBASE_REG_ZONE_SAME_VA ||
+		zone_bits == KBASE_REG_ZONE_CUSTOM_VA ||
+		zone_bits == KBASE_REG_ZONE_EXEC_VA);
+}
 
 /* Special marker for failed JIT allocations that still must be marked as
  * in-use
@@ -540,12 +559,31 @@ static inline bool kbase_is_region_invalid_or_free(struct kbase_va_region *reg)
 	return (kbase_is_region_invalid(reg) ||	kbase_is_region_free(reg));
 }
 
-int kbase_remove_va_region(struct kbase_va_region *reg);
-static inline void kbase_region_refcnt_free(struct kbase_va_region *reg)
+/**
+ * kbase_is_region_shrinkable - Check if a region is "shrinkable".
+ * A shrinkable regions is a region for which its backing pages (reg->gpu_alloc->pages)
+ * can be freed at any point, even though the kbase_va_region structure itself
+ * may have been refcounted.
+ * Regions that aren't on a shrinker, but could be shrunk at any point in future
+ * without warning are still considered "shrinkable" (e.g. Active JIT allocs)
+ *
+ * @reg: Pointer to region
+ *
+ * Return: true if the region is "shrinkable", false if not.
+ */
+static inline bool kbase_is_region_shrinkable(struct kbase_va_region *reg)
+{
+	return (reg->flags & KBASE_REG_DONT_NEED) || (reg->flags & KBASE_REG_ACTIVE_JIT_ALLOC);
+}
+
+void kbase_remove_va_region(struct kbase_device *kbdev,
+			    struct kbase_va_region *reg);
+static inline void kbase_region_refcnt_free(struct kbase_device *kbdev,
+					    struct kbase_va_region *reg)
 {
 	/* If region was mapped then remove va region*/
 	if (reg->start_pfn)
-		kbase_remove_va_region(reg);
+		kbase_remove_va_region(kbdev, reg);
 
 	/* To detect use-after-free in debug builds */
 	KBASE_DEBUG_CODE(reg->flags |= KBASE_REG_FREE);
@@ -558,9 +596,10 @@ static inline struct kbase_va_region *kbase_va_region_alloc_get(
 	lockdep_assert_held(&kctx->reg_lock);
 
 	WARN_ON(!region->va_refcnt);
+	WARN_ON(region->va_refcnt == INT_MAX);
 
 	/* non-atomic as kctx->reg_lock is held */
-	dev_dbg(kctx->kbdev->dev, "va_refcnt %d before get %pK\n",
+	dev_vdbg(kctx->kbdev->dev, "va_refcnt %d before get %pK\n",
 		region->va_refcnt, (void *)region);
 	region->va_refcnt++;
 
@@ -577,12 +616,75 @@ static inline struct kbase_va_region *kbase_va_region_alloc_put(
 
 	/* non-atomic as kctx->reg_lock is held */
 	region->va_refcnt--;
-	dev_dbg(kctx->kbdev->dev, "va_refcnt %d after put %pK\n",
+	dev_vdbg(kctx->kbdev->dev, "va_refcnt %d after put %pK\n",
 		region->va_refcnt, (void *)region);
 	if (!region->va_refcnt)
-		kbase_region_refcnt_free(region);
+		kbase_region_refcnt_free(kctx->kbdev, region);
 
 	return NULL;
+}
+
+/**
+ * kbase_va_region_is_no_user_free - Check if user free is forbidden for the region.
+ * A region that must not be freed by userspace indicates that it is owned by some other
+ * kbase subsystem, for example tiler heaps, JIT memory or CSF queues.
+ * Such regions must not be shrunk (i.e. have their backing pages freed), except by the
+ * current owner.
+ * Hence, callers cannot rely on this check alone to determine if a region might be shrunk
+ * by any part of kbase. Instead they should use kbase_is_region_shrinkable().
+ *
+ * @kctx: Pointer to kbase context.
+ * @region: Pointer to region.
+ *
+ * Return: true if userspace cannot free the region, false if userspace can free the region.
+ */
+static inline bool kbase_va_region_is_no_user_free(struct kbase_context *kctx,
+						   struct kbase_va_region *region)
+{
+	lockdep_assert_held(&kctx->reg_lock);
+	return region->no_user_free_refcnt > 0;
+}
+
+/**
+ * kbase_va_region_no_user_free_get - Increment "no user free" refcount for a region.
+ * Calling this function will prevent the region to be shrunk by parts of kbase that
+ * don't own the region (as long as the refcount stays above zero). Refer to
+ * kbase_va_region_is_no_user_free() for more information.
+ *
+ * @kctx: Pointer to kbase context.
+ * @region: Pointer to region (not shrinkable).
+ *
+ * Return: the pointer to the region passed as argument.
+ */
+static inline struct kbase_va_region *
+kbase_va_region_no_user_free_get(struct kbase_context *kctx, struct kbase_va_region *region)
+{
+	lockdep_assert_held(&kctx->reg_lock);
+
+	WARN_ON(kbase_is_region_shrinkable(region));
+	WARN_ON(region->no_user_free_refcnt == INT_MAX);
+
+	/* non-atomic as kctx->reg_lock is held */
+	region->no_user_free_refcnt++;
+
+	return region;
+}
+
+/**
+ * kbase_va_region_no_user_free_put - Decrement "no user free" refcount for a region.
+ *
+ * @kctx: Pointer to kbase context.
+ * @region: Pointer to region (not shrinkable).
+ */
+static inline void kbase_va_region_no_user_free_put(struct kbase_context *kctx,
+						    struct kbase_va_region *region)
+{
+	lockdep_assert_held(&kctx->reg_lock);
+
+	WARN_ON(!kbase_va_region_is_no_user_free(kctx, region));
+
+	/* non-atomic as kctx->reg_lock is held */
+	region->no_user_free_refcnt--;
 }
 
 /* Common functions */
@@ -1235,6 +1337,7 @@ void kbase_mmu_disable_as(struct kbase_device *kbdev, int as_nr);
 
 void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat);
 
+#if defined(CONFIG_MALI_VECTOR_DUMP)
 /**
  * kbase_mmu_dump() - Dump the MMU tables to a buffer.
  *
@@ -1254,6 +1357,7 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat);
  * (including if the @c nr_pages is too small)
  */
 void *kbase_mmu_dump(struct kbase_context *kctx, int nr_pages);
+#endif
 
 /**
  * kbase_sync_now - Perform cache maintenance on a memory region
@@ -1790,25 +1894,33 @@ bool kbase_has_exec_va_zone(struct kbase_context *kctx);
 /**
  * kbase_map_external_resource - Map an external resource to the GPU.
  * @kctx:              kbase context.
- * @reg:               The region to map.
+ * @reg:               External resource to map.
  * @locked_mm:         The mm_struct which has been locked for this operation.
  *
- * Return: The physical allocation which backs the region on success or NULL
- * on failure.
+ * On successful mapping, the VA region and the gpu_alloc refcounts will be
+ * increased, making it safe to use and store both values directly.
+ *
+ * Return: Zero on success, or negative error code.
  */
-struct kbase_mem_phy_alloc *kbase_map_external_resource(
-		struct kbase_context *kctx, struct kbase_va_region *reg,
-		struct mm_struct *locked_mm);
+int kbase_map_external_resource(struct kbase_context *kctx, struct kbase_va_region *reg,
+								struct mm_struct *locked_mm);
 
 /**
  * kbase_unmap_external_resource - Unmap an external resource from the GPU.
  * @kctx:  kbase context.
- * @reg:   The region to unmap or NULL if it has already been released.
- * @alloc: The physical allocation being unmapped.
+ * @reg:   VA region corresponding to external resource
+ *
+ * On successful unmapping, the VA region and the gpu_alloc refcounts will
+ * be decreased. If the refcount reaches zero, both @reg and the corresponding
+ * allocation may be freed, so using them after returning from this function
+ * requires the caller to explicitly check their state.
  */
-void kbase_unmap_external_resource(struct kbase_context *kctx,
-		struct kbase_va_region *reg, struct kbase_mem_phy_alloc *alloc);
-
+void kbase_unmap_external_resource(struct kbase_context *kctx, struct kbase_va_region *reg);
+/**
+ * kbase_unpin_user_buf_page - Unpin a page of a user buffer.
+ * @page: page to unpin
+ */
+void kbase_unpin_user_buf_page(struct page *page);
 
 /**
  * kbase_jd_user_buf_pin_pages - Pin the pages of a user buffer.
@@ -2036,7 +2148,7 @@ int kbase_mem_copy_to_pinned_user_pages(struct page **dest_pages,
 		unsigned int *target_page_nr, size_t offset);
 
 /**
- * kbase_ctx_reg_zone_end_pfn - return the end Page Frame Number of @zone
+ * kbase_reg_zone_end_pfn - return the end Page Frame Number of @zone
  * @zone: zone to query
  *
  * Return: The end of the zone corresponding to @zone
@@ -2061,7 +2173,7 @@ static inline void kbase_ctx_reg_zone_init(struct kbase_context *kctx,
 	struct kbase_reg_zone *zone;
 
 	lockdep_assert_held(&kctx->reg_lock);
-	WARN_ON((zone_bits & KBASE_REG_ZONE_MASK) != zone_bits);
+	WARN_ON(!kbase_is_ctx_reg_zone(zone_bits));
 
 	zone = &kctx->reg_zone[KBASE_REG_ZONE_IDX(zone_bits)];
 	*zone = (struct kbase_reg_zone){
@@ -2084,7 +2196,7 @@ static inline struct kbase_reg_zone *
 kbase_ctx_reg_zone_get_nolock(struct kbase_context *kctx,
 			      unsigned long zone_bits)
 {
-	WARN_ON((zone_bits & KBASE_REG_ZONE_MASK) != zone_bits);
+	WARN_ON(!kbase_is_ctx_reg_zone(zone_bits));
 
 	return &kctx->reg_zone[KBASE_REG_ZONE_IDX(zone_bits)];
 }
@@ -2102,7 +2214,7 @@ static inline struct kbase_reg_zone *
 kbase_ctx_reg_zone_get(struct kbase_context *kctx, unsigned long zone_bits)
 {
 	lockdep_assert_held(&kctx->reg_lock);
-	WARN_ON((zone_bits & KBASE_REG_ZONE_MASK) != zone_bits);
+	WARN_ON(!kbase_is_ctx_reg_zone(zone_bits));
 
 	return &kctx->reg_zone[KBASE_REG_ZONE_IDX(zone_bits)];
 }

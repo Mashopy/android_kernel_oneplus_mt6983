@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -28,6 +28,10 @@
 #define _KBASE_JM_DEFS_H_
 
 #include "mali_kbase_js_defs.h"
+
+#if defined(CONFIG_GPU_MT6833)
+#define CONFIG_MALI_MTK_GPU_BM_JM
+#endif
 
 /* Dump Job slot trace on error (only active if KBASE_KTRACE_ENABLE != 0) */
 #define KBASE_KTRACE_DUMP_ON_JOB_SLOT_ERROR 1
@@ -87,8 +91,6 @@
 #define KBASE_KATOM_FLAG_FAIL_BLOCKER (1<<8)
 /* Atom is currently in the list of atoms blocked on cross-slot dependencies */
 #define KBASE_KATOM_FLAG_JSCTX_IN_X_DEP_LIST (1<<9)
-/* Atom is currently holding a context reference */
-#define KBASE_KATOM_FLAG_HOLDING_CTX_REF (1<<10)
 /* Atom requires GPU to be in protected mode */
 #define KBASE_KATOM_FLAG_PROTECTED (1<<11)
 /* Atom has been stored in runnable_tree */
@@ -343,19 +345,6 @@ enum kbase_atom_exit_protected_state {
 };
 
 /**
- * struct kbase_ext_res - Contains the info for external resources referred
- *                        by an atom, which have been mapped on GPU side.
- * @gpu_address:          Start address of the memory region allocated for
- *                        the resource from GPU virtual address space.
- * @alloc:                pointer to physical pages tracking object, set on
- *                        mapping the external resource on GPU side.
- */
-struct kbase_ext_res {
-	u64 gpu_address;
-	struct kbase_mem_phy_alloc *alloc;
-};
-
-/**
  * struct kbase_jd_atom  - object representing the atom, containing the complete
  *                         state and attributes of an atom.
  * @work:                  work item for the bottom half processing of the atom,
@@ -388,7 +377,8 @@ struct kbase_ext_res {
  *                         each allocation is read in order to enforce an
  *                         overall physical memory usage limit.
  * @nr_extres:             number of external resources referenced by the atom.
- * @extres:                pointer to the location containing info about
+ * @extres:                Pointer to @nr_extres VA regions containing the external
+ *                         resource allocation and other information.
  *                         @nr_extres external resources referenced by the atom.
  * @device_nr:             indicates the coregroup with which the atom is
  *                         associated, when
@@ -518,7 +508,7 @@ struct kbase_jd_atom {
 #endif /* MALI_JIT_PRESSURE_LIMIT_BASE */
 
 	u16 nr_extres;
-	struct kbase_ext_res *extres;
+	struct kbase_va_region **extres;
 
 	u32 device_nr;
 	u64 jc;
@@ -602,7 +592,7 @@ struct kbase_jd_atom {
 
 	wait_queue_head_t completed;
 	enum kbase_jd_atom_state status;
-#if IS_ENABLED(CONFIG_GPU_TRACEPOINTS) || defined(CONFIG_MALI_MTK_GPU_BM_2)
+#if IS_ENABLED(CONFIG_GPU_TRACEPOINTS) || defined(CONFIG_MALI_MTK_GPU_BM_JM)
 	int work_id;
 #endif
 
@@ -646,7 +636,7 @@ struct kbase_jd_atom {
 	struct rb_node runnable_tree_node;
 
 	u32 age;
-#if defined(CONFIG_MALI_MTK_GPU_BM_2)
+#if defined(CONFIG_MALI_MTK_GPU_BM_JM)
 	/* frame number to the atom */
 	u32 frame_nr;
 #endif
@@ -809,7 +799,7 @@ struct kbase_jd_context {
 	u32 job_nr;
 	size_t tb_wrap_offset;
 
-#if IS_ENABLED(CONFIG_GPU_TRACEPOINTS) || defined(CONFIG_MALI_MTK_GPU_BM_2)
+#if IS_ENABLED(CONFIG_GPU_TRACEPOINTS) || defined(CONFIG_MALI_MTK_GPU_BM_JM)
 	atomic_t work_id;
 #endif
 
@@ -855,5 +845,9 @@ struct kbase_as {
 	struct kbase_fault bf_data;
 	struct kbase_mmu_setup current_setup;
 };
+
+#if defined(CONFIG_GPU_MT6833)
+#undef CONFIG_MALI_MTK_GPU_BM_JM
+#endif
 
 #endif /* _KBASE_JM_DEFS_H_ */

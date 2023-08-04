@@ -18,6 +18,13 @@
 #
 #
 
-ifeq ($(CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR), y)
-obj-m := protected_memory_allocator.o
+KO_CODE_PATH := $(if $(filter /%,$(src)),,$(srctree)/)$(src)
+
+ccflags-y = -I$(KO_CODE_PATH)/../../../gpu/arm/midgard/include
+subdir-ccflags-y += $(ccflags-y)
+
+ifeq ($(CONFIG_MALI_MEMORY_GROUP_MANAGER), y)
+#obj-m := memory_group_manager.o
+obj-m += mali_mgm_$(MTK_PLATFORM_VERSION).o
+mali_mgm_$(MTK_PLATFORM_VERSION)-y := memory_group_manager.o
 endif

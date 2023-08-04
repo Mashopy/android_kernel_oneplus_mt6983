@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
@@ -21,6 +21,8 @@
 
 #ifndef _KBASE_MMU_H_
 #define _KBASE_MMU_H_
+
+#define KBASE_MMU_PAGE_ENTRIES 512
 
 /**
  * kbase_mmu_as_init() - Initialising GPU address space object.
