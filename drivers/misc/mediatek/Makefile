@@ -127,3 +127,4 @@ obj-$(CONFIG_MTK_SPM) += spm/
 obj-$(CONFIG_MTK_SPM_V0) += spm/
 obj-$(CONFIG_MTK_VIDEOCODEC_DRIVER) += videocodec/
 obj-$(CONFIG_MTK_LEGACY_THERMAL) += thermal/
+obj-y += met_drv_v3/
