@@ -32,9 +32,9 @@
 #include "../../../../../kernel-5.15/drivers/android/binder_internal.h"
 #include "../../../../../kernel-5.15/drivers/android/binder_alloc.h"
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
-#include "../../../../../kernel-5.10/kernel/sched/sched.h"
-#include "../../../../../kernel-5.10/drivers/android/binder_internal.h"
-#include "../../../../../kernel-5.10/drivers/android/binder_alloc.h"
+#include "../../../../kernel/sched/sched.h"
+#include "../../../android/binder_internal.h"
+#include "../../../android/binder_alloc.h"
 #endif
 #endif
 
