@@ -71,7 +71,7 @@ source "drivers/misc/mediatek/imgsensor/src/Kconfig"
 
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 #Add for DFX camera log report
-source "drivers/misc/mediatek/imgsensor/oplus/Kconfig
+source "drivers/misc/mediatek/imgsensor/oplus/Kconfig"
 
 config OPLUS_CAM_OLC_EXCEPTION
 	bool "olc raise exception support"

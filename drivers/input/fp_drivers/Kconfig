@@ -6,7 +6,7 @@ menuconfig OPLUS_FINGERPRINT
 
 config OPLUS_FINGERPRINT_GKI_ENABLE
        default n
-       tristate "Fingerprint enable gki"
+       bool "Fingerprint enable gki"
 
 config OPLUS_FINGERPRINT_COMMON
        default n
