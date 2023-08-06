@@ -80,8 +80,6 @@ static int s_receiver_judgement = 0;
 extern bool g_speaker_resistance_fail;
 #endif /* OPLUS_ARCH_EXTENDS */
 
-#define CONFIG_MTK_PLATFORM
-
 #define TFA98XX_VERSION	TFA98XX_API_REV_STR
 
 #define I2C_RETRIES 50
