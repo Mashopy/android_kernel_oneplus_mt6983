@@ -966,24 +966,6 @@
 	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;
-	panel2@0 {
-		compatible = "oplus22021_boe_nt37701a_fhd_dsi_cmd";
-		reg = <1>;
-		vddr1p5-enable-gpios = <&pio 148 0>;
-		reset-gpios = <&pio 86 0>;
-		//te_switch-gpios = <&pio 24 0>;
-		te_out-gpios = <&pio 36 0>;
-		aod_en-gpios = <&mt6373_pio 3 0>;
-		1p8-supply = <&mt6363_vufs18>;
-		3p0-supply = <&mt6373_vmch>;
-		pinctrl-names = "default";
-		port {
-			panel_in2: endpoint {
-				remote-endpoint = <&dsi_out>;
-			};
-		};
-	};
-
 	panel5@0 {
 		compatible = "oplus22823,tm,nt37705,cmd";
 		reg = <0>;
@@ -1008,26 +990,10 @@
 			};
 		};
 	};
-/*	panel2@0 {
-		compatible = "oplus21007_samsung_amb670yf01_qhd_dsi_cmd";
-		reg = <1>;
-		vddr1p5-enable-gpios = <&pio 148 0>;
-		reset-gpios = <&pio 86 0>;
-		te_switch-gpios = <&pio 24 0>;
-		te_out-gpios = <&pio 36 0>;
-		1p8-supply = <&mt6363_vufs18>;
-		3p0-supply = <&mt6373_vmch>;
-		pinctrl-names = "default";
-		port {
-			panel_in2: endpoint {
-				remote-endpoint = <&dsi_out>;
-			};
-		};
-	};*/
 	ports {
 		port {
 			dsi_out: endpoint {
-				remote-endpoint = <&panel_in2>;
+				remote-endpoint = <&panel_in5>;
 			};
 		};
 	};
