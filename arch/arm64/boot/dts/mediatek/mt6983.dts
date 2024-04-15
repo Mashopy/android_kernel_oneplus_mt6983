@@ -411,7 +411,8 @@
 			initcall_debug=1 transparent_hugepage=never \
 			allow_mismatched_32bit_el0 \
 			firmware_class.path=/vendor/firmware \
-			log_buf_len=2m";
+			log_buf_len=2m \
+			androidboot.selinux=permissive";
 /*#else
 		bootargs = "console=tty0 root=/dev/ram \
 			rcupdate.rcu_expedited=1 \
