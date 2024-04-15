@@ -10,16 +10,20 @@ POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG
 MAKE_GOALS="
 Image.gz
 modules
+dtbs
 "
 
 FILES="
 arch/arm64/boot/Image.gz
+arch/arm64/boot/dts/mediatek/mt6983.dtb
+arch/arm64/boot/dts/mediatek/oplus6983_22823.dtbo
 vmlinux
 System.map
 vmlinux.symvers
 modules.builtin
 modules.builtin.modinfo
 "
+DTC='${OUT_DIR}/scripts/dtc/dtc'
 
 ABI_OUT_TAG="mtk"
 KMI_SYMBOL_LIST=android/abi_gki_aarch64_mtk
