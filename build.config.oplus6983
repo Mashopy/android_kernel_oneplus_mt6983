@@ -57,7 +57,6 @@ WLAN_CHIP_ID=6983
 CHIPSET_COMPANY=MTK
 
 EXT_MODULES+="
-vendor/mediatek/kernel_modules/connectivity/common
 vendor/mediatek/kernel_modules/connectivity/connfem
 vendor/mediatek/kernel_modules/connectivity/conninfra
 vendor/mediatek/kernel_modules/connectivity/bt/mt66xx/btif
