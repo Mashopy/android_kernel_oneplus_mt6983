@@ -6,6 +6,7 @@ KERNEL_DIR=kernel-5.10
 DEFCONFIG=oplus6983_defconfig
 PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/mgk_64_k510_defconfig ${ROOT_DIR}/${KERNEL_DIR}/kernel/configs/oplus6983.config"
 POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+POST_KERNEL_BUILD_CMDS="python ${ROOT_DIR}/system/libufdt/utils/src/mkdtboimg.py create ${ROOT_DIR}/out/${BRANCH}/${KERNEL_DIR}/dtbo.img --page_size=4096 ${ROOT_DIR}/out/${BRANCH}/${KERNEL_DIR}/arch/arm64/boot/dts/mediatek/oplus6983_22823.dtbo"
 
 MAKE_GOALS="
 Image.gz
@@ -17,6 +18,7 @@ FILES="
 arch/arm64/boot/Image.gz
 arch/arm64/boot/dts/mediatek/mt6983.dtb
 arch/arm64/boot/dts/mediatek/oplus6983_22823.dtbo
+dtbo.img
 vmlinux
 System.map
 vmlinux.symvers
