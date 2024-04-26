@@ -270,7 +270,7 @@
 		status = "ok";
 		compatible = "hid-over-i2c";
 		reg = <0x60>;
-		dev_name = "OPLUS Smart Touchpad";
+		dev_name = "OPPO Smart Touchpad";
 		pinctrl-names = "default", "pogopin_rst_low", "pogopin_rst_high";
 		pinctrl-0 = <&touchpad_int_default &pogopin_rst_default>;
 		pinctrl-1 = <&pogopin_rst_low>;
@@ -306,7 +306,7 @@
 		hid-descr-addr = <0x01>;
 		pogopin-detect-check;
 		keyboard-firmware-name = "KBD_MCU_OPLUS.bin", "KBD_MCU_ONEPLUS.bin";
-		keyboard-dev-name = "OPLUS Pad 2 Smart Touchpad Keyboard", "OnePlus Magnetic Keyboard";
+		keyboard-dev-name = "OPPO Pad 2 Smart Touchpad Keyboard", "OnePlus Magnetic Keyboard";
 	};
 };
 
