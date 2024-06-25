@@ -7,6 +7,9 @@ DEFCONFIG=oplus6983_defconfig
 PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/mgk_64_k510_defconfig ${ROOT_DIR}/${KERNEL_DIR}/kernel/configs/oplus6983.config"
 POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
 
+# Need to run manually the command below
+# find ${ROOT_DIR}/out/${BRANCH}/${KERNEL_DIR} -type f -name *.ko -exec ${ROOT_DIR}/${CLANG_PREBUILT_BIN}/${OBJCOPY} --strip-debug {} \;
+
 MAKE_GOALS="
 Image.gz
 modules
