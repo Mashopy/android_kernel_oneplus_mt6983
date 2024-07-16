@@ -1091,6 +1091,14 @@ export INSTALL_DTBS_PATH ?= $(INSTALL_PATH)/dtbs/$(KERNELRELEASE)
 MODLIB	= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 export MODLIB
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+KBUILD_CFLAGS += -DOPLUS_FEATURE_CHG_BASIC
+#endif
+
+#ifdef OPLUS_FEATURE_DISPLAY
+KBUILD_CFLAGS += -DOPLUS_FEATURE_DISPLAY
+#endif
+
 #
 # INSTALL_MOD_STRIP, if defined, will cause modules to be
 # stripped after they are installed.  If INSTALL_MOD_STRIP is '1', then

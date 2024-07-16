@@ -172,6 +172,22 @@ void mtk_ddp_write_relaxed(struct mtk_ddp_comp *comp, unsigned int value,
 
 }
 
+//#ifdef OPLUS_ADFR
+void mtk_ddp_write_relaxed(struct mtk_ddp_comp *comp, unsigned int value,
+			   unsigned int offset, void *handle)
+{
+#ifndef DRM_CMDQ_DISABLE
+	if (handle) {
+		cmdq_pkt_write((struct cmdq_pkt *)handle, comp->cmdq_base,
+		       comp->regs_pa + offset, value, ~0);
+		return;
+	}
+#endif
+	writel_relaxed(value, comp->regs + offset);
+
+}
+//#endif OPLUS_ADFR
+
 void mtk_ddp_write_mask(struct mtk_ddp_comp *comp, unsigned int value,
 			unsigned int offset, unsigned int mask, void *handle)
 {

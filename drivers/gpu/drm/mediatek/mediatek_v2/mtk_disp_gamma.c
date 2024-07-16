@@ -58,6 +58,9 @@ static unsigned int g_gamma_relay_value[DISP_GAMMA_TOTAL];
 static struct mtk_ddp_comp *default_comp;
 
 unsigned int g_gamma_data_mode;
+#ifdef OPLUS_FEATURE_DISPLAY
+extern bool g_gamma_probe_ready;
+#endif /* OPLUS_FEATURE_DISPLAY */
 
 struct gamma_color_protect {
 	unsigned int gamma_color_protect_support;
@@ -937,6 +940,9 @@ static int mtk_disp_gamma_probe(struct platform_device *pdev)
 		wake_up_process(gamma_sof_irq_event_task);
 	}
 
+#ifdef OPLUS_FEATURE_DISPLAY
+	g_gamma_probe_ready = true;
+#endif /* OPLUS_FEATURE_DISPLAY */
 	DDPINFO("%s-\n", __func__);
 
 	return ret;

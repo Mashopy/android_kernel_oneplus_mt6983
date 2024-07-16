@@ -130,7 +130,11 @@
 #define CAMSV_2_WDMA_PORT		0x3FF3F
 #define RAW_WDMA_PORT			0x1E001
 #define RAW_RDMA_PORT			0x1FFE
-#define RAW_RAWIR2_PORT			0x20
+
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
+#define RAW_RAWIR2_PORT         0x20
+#endif
+
 #define YUV_WDMA_PORT			0x7F
 #define YUV_RDMA_PORT			0x0
 

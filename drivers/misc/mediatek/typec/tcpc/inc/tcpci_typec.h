@@ -30,7 +30,11 @@ extern int tcpc_typec_handle_timeout(
 
 extern int tcpc_typec_handle_vsafe0v(struct tcpc_device *tcpc);
 
+#ifndef OPLUS_FEATURE_CHG_BASIC
 extern int tcpc_typec_set_rp_level(struct tcpc_device *tcpc, uint8_t res);
+#else
+extern int tcpc_typec_set_rp_level(struct tcpc_device *tcpc, uint8_t rp_lvl);
+#endif
 
 extern int tcpc_typec_error_recovery(struct tcpc_device *tcpc);
 

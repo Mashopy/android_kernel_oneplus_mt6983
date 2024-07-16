@@ -1700,7 +1700,11 @@ static void init_dma_threshold(struct mtk_raw_device *dev)
 		mtk_smi_larb_ultra_dis(&dev->larb_pdev->dev, true);
 		mtk_smi_larb_ultra_dis(&yuv_dev->larb_pdev->dev, true);
 	} else {
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+		writel_relaxed(RAW_WDMA_PORT, cam_dev->base + raw_urgent);
+#else
 		writel_relaxed(RAW_WDMA_PORT | RAW_RAWIR2_PORT, cam_dev->base + raw_urgent);
+#endif
 		writel_relaxed(YUV_WDMA_PORT, cam_dev->base + yuv_urgent);
 
 		mtk_smi_larb_ultra_dis(&dev->larb_pdev->dev, false);
@@ -1984,7 +1988,12 @@ void stream_on(struct mtk_raw_device *dev, int on)
 			fps_ratio = get_fps_ratio(dev);
 			dev_info(dev->dev, "VF on - REG_TG_TIME_STAMP_CNT val:%d fps(30x):%d\n",
 			val, fps_ratio);
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+			if (mtk_cam_feature_is_stagger(feature) ||
+				mtk_cam_feature_is_ext_isp(feature))
+#else
 			if (mtk_cam_feature_is_stagger(feature))
+#endif
 				writel_relaxed(SCQ_DEADLINE_MS * 3 * 1000 * SCQ_DEFAULT_CLK_RATE /
 				(val * 2) / fps_ratio, dev->base + REG_SCQ_START_PERIOD);
 			else
@@ -3076,7 +3085,7 @@ static int mtk_raw_available_resource(struct mtk_raw *raw)
 				res_status |= 1 << j;
 		}
 	}
-	dev_dbg(raw->cam_dev, "%s raw_status:0x%x Available Engine:A/B/C:%d/%d/%d\n",
+	dev_info(raw->cam_dev, "%s raw_status:0x%x Available Engine:A/B/C:%d/%d/%d\n",
 		 __func__, res_status,
 			!(res_status & (1 << MTKCAM_SUBDEV_RAW_0)),
 			!(res_status & (1 << MTKCAM_SUBDEV_RAW_1)),
@@ -3303,7 +3312,11 @@ int mtk_cam_raw_select(struct mtk_cam_ctx *ctx,
 			selected = true;
 		}
 	} else if (pipe->res_config.raw_num_used == 2) {
+		#ifdef OPLUS_FEATURE_CAMERA_COMMON
+		for (m = MTKCAM_SUBDEV_RAW_0; m < MTKCAM_SUBDEV_RAW_2; m++) {
+		#else
 		for (m = MTKCAM_SUBDEV_RAW_0; m >= MTKCAM_SUBDEV_RAW_0; m--) {
+		#endif
 			mask = (1 << m) | (1 << (m + 1));
 			if (!(raw_status & mask)) {
 				pipe->enabled_raw |= mask;
@@ -6020,7 +6033,7 @@ static int mtk_raw_pipeline_register(unsigned int id, struct device *dev,
 	int ret;
 
 	pipe->id = id;
-	pipe->dynamic_exposure_num_max = 3;
+	pipe->dynamic_exposure_num_max = 1;
 
 	/* Initialize subdev */
 	v4l2_subdev_init(sd, &mtk_raw_subdev_ops);

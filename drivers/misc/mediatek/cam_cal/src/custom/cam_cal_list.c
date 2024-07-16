@@ -11,6 +11,7 @@
 
 #define MAX_EEPROM_SIZE_32K 0x8000
 #define MAX_EEPROM_SIZE_16K 0x4000
+#define MAX_EEPROM_SIZE_8K  0x2000
 
 struct stCAM_CAL_LIST_STRUCT g_camCalList[] = {
 	/*Below is commom sensor */
@@ -39,6 +40,10 @@ struct stCAM_CAL_LIST_STRUCT g_camCalList[] = {
 	{IMX350_SENSOR_ID, 0xA0, Common_read_region},
 	{IMX386_MONO_SENSOR_ID, 0xA0, Common_read_region},
 	{IMX499_SENSOR_ID, 0xA0, Common_read_region},
+	{OV64B_SENSOR_ID_22823, 0xA0, Common_read_region, MAX_EEPROM_SIZE_16K},
+	{IMX355_SENSOR_ID_22823, 0xA2, Common_read_region, MAX_EEPROM_SIZE_16K},
+	{S5K3P9SP_SENSOR_ID_22823, 0xA8, Common_read_region, MAX_EEPROM_SIZE_16K},
+	{GC02M1_SENSOR_ID_22823, 0xA4, Common_read_region, MAX_EEPROM_SIZE_8K},
 	#ifdef SUPPORT_S5K4H7
 	{S5K4H7FRONT_SENSOR_ID, 0x20, s5k4h7_read_otpdata},
 	#endif

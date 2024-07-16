@@ -36,6 +36,9 @@
 
 #define AAL_EN BIT(0)
 static int g_dre30_support;
+#ifdef OPLUS_FEATURE_DISPLAY
+extern bool g_dmdp_probe_ready;
+#endif /* OPLUS_FEATURE_DISPLAY */
 struct mtk_dmdp_aal_data {
 	bool support_shadow;
 	bool need_bypass_shadow;
@@ -438,6 +441,9 @@ static int mtk_dmdp_aal_probe(struct platform_device *pdev)
 		mtk_ddp_comp_pm_disable(&priv->ddp_comp);
 	}
 
+#ifdef OPLUS_FEATURE_DISPLAY
+	g_dmdp_probe_ready = true;
+#endif /* OPLUS_FEATURE_DISPLAY */
 	return ret;
 }
 

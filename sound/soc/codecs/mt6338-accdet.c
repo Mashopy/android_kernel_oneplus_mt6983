@@ -1134,7 +1134,7 @@ static u32 adjust_eint_digital_setting(void)
 			       MT6338_ACCDET_EINT0_CEN_STABLE_SHIFT);
 		ret = get_moisture_sw_auxadc_check();
 		/* disable mtest en */
-		pmic_write_clr(MT6338_RG_MTEST_EN_ADDR, MT6338_RG_MTEST_EN_SHIFT);
+		//pmic_write_clr(MT6338_RG_MTEST_EN_ADDR, MT6338_RG_MTEST_EN_SHIFT);
 		pmic_write_clr(MT6338_AUDACCDETAUXADCSWCTRL_SEL_ADDR,
 			       MT6338_AUDACCDETAUXADCSWCTRL_SEL_SHIFT);
 		return ret;
@@ -1226,9 +1226,9 @@ static u32 adjust_moisture_analog_setting(u32 eintID)
 				MT6338_RG_EINTCOMPVTH_MASK,
 				accdet_dts.moisture_comp_vth);
 		/* Enable mtest en */
-		pmic_write_set(MT6338_RG_MTEST_EN_ADDR, MT6338_RG_MTEST_EN_SHIFT);
+		//pmic_write_set(MT6338_RG_MTEST_EN_ADDR, MT6338_RG_MTEST_EN_SHIFT);
 		/* select PAD_HP_EINT for moisture detection */
-		pmic_write_clr(MT6338_RG_MTEST_SEL_ADDR, MT6338_RG_MTEST_SEL_SHIFT);
+		//pmic_write_clr(MT6338_RG_MTEST_SEL_ADDR, MT6338_RG_MTEST_SEL_SHIFT);
 	} else if (accdet_dts.moisture_detect_mode == 0x4) {
 		/* do nothing */
 	} else if (accdet_dts.moisture_detect_mode == 0x5) {
@@ -1955,10 +1955,10 @@ static u32 config_moisture_detect_1_0(void)
 		       MT6338_AUDACCDETAUXADCSWCTRL_SW_SHIFT);
 
 	/* Enable moisture detection */
-	pmic_write_set(MT6338_RG_MTEST_EN_ADDR, MT6338_RG_MTEST_EN_SHIFT);
+	//pmic_write_set(MT6338_RG_MTEST_EN_ADDR, MT6338_RG_MTEST_EN_SHIFT);
 
 	/* select PAD_HP_EINT for moisture detection */
-	pmic_write_clr(MT6338_RG_MTEST_SEL_ADDR, MT6338_RG_MTEST_SEL_SHIFT);
+	//pmic_write_clr(MT6338_RG_MTEST_SEL_ADDR, MT6338_RG_MTEST_SEL_SHIFT);
 
 	/* select VTH to 2v */
 	pmic_write_mset(MT6338_RG_EINTCOMPVTH_ADDR,
@@ -2694,8 +2694,8 @@ static void accdet_init_once(void)
 		pmic_write(MT6338_RG_AUDACCDETMICBIAS0PULLLOW_ADDR,
 			reg | RG_ACCDET_MODE_ANA11_MODE1);
 		/* enable analog fast discharge */
-		pmic_write_set(MT6338_RG_ANALOGFDEN_ADDR,
-			MT6338_RG_ANALOGFDEN_SHIFT);
+		//pmic_write_set(MT6338_RG_ANALOGFDEN_ADDR,
+			//MT6338_RG_ANALOGFDEN_SHIFT);
 		pmic_write_mset(MT6338_RG_ACCDET_PL_ESDMOS_ADDR,
 				MT6338_RG_ACCDET_PL_ESDMOS_SHIFT, 0x3, 0x3);
 	} else if (accdet_dts.mic_mode == HEADSET_MODE_2) {
@@ -2703,8 +2703,8 @@ static void accdet_init_once(void)
 		pmic_write(MT6338_RG_AUDACCDETMICBIAS0PULLLOW_ADDR,
 			reg | RG_ACCDET_MODE_ANA11_MODE2);
 		/* enable analog fast discharge */
-		pmic_write_mset(MT6338_RG_ANALOGFDEN_ADDR,
-			MT6338_RG_ANALOGFDEN_SHIFT, 0x3, 0x3);
+		//pmic_write_mset(MT6338_RG_ANALOGFDEN_ADDR,
+			//MT6338_RG_ANALOGFDEN_SHIFT, 0x3, 0x3);
 	} else if (accdet_dts.mic_mode == HEADSET_MODE_6) {
 		/* DCC mode Low cost mode with internal bias,
 		 * bit8 = 1 to use internal bias
@@ -2714,8 +2714,8 @@ static void accdet_init_once(void)
 		pmic_write_set(MT6338_RG_AUDMICBIAS1DCSW1PEN_ADDR,
 				MT6338_RG_AUDMICBIAS1DCSW1PEN_SHIFT);
 		/* enable analog fast discharge */
-		pmic_write_mset(MT6338_RG_ANALOGFDEN_ADDR,
-			MT6338_RG_ANALOGFDEN_SHIFT, 0x3, 0x3);
+		//pmic_write_mset(MT6338_RG_ANALOGFDEN_ADDR,
+			//MT6338_RG_ANALOGFDEN_SHIFT, 0x3, 0x3);
 	}
 
 	if (HAS_CAP(accdet->data->caps, ACCDET_PMIC_EINT_IRQ)) {

@@ -95,6 +95,7 @@ obj-$(CONFIG_DRM_PANEL_HX83112B_AUO_CMD_RT5081) += panel-hx83112b-auo-cmd-60hz-r
 obj-$(CONFIG_DRM_PANEL_BOE_HX83102J_VDO) += panel-boe-hx83102j-vdo.o
 obj-$(CONFIG_DRM_PANEL_TIANMA_HX83102J_VDO) += panel-tianma-hx83102j-vdo.o
 
+obj-$(CONFIG_DRM_PANEL_OPLUS22823_TM_NT37705_FHD_DSI_CMD) += oplus22823_tm_nt37705_fhd_dsi_cmd.o
 obj-$(CONFIG_BACKLIGHT_KTZ8866)         += ktz8866.o
 obj-$(CONFIG_DRM_PANEL_EDO_HX5329_CMD_120) += panel-edo-hx5329-cmd-120hz.o
 

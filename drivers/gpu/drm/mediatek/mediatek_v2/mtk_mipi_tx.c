@@ -201,6 +201,10 @@
 #define MIPITX_CK_SW_LPTX_PRE_OE_MT6983	(0x0360UL)
 #define MIPITX_CKC_SW_LPTX_PRE_OE_MT6983	(0x0380UL)
 
+//#ifdef OPLUS_BUG_STABILITY
+extern unsigned int oplus_enhance_mipi_strength;
+//#endif OPLUS_BUG_STABILITY
+
 enum MIPITX_PAD_VALUE {
 	PAD_D2P_T0A = 0,
 	PAD_D2N_T0B,
@@ -1636,6 +1640,13 @@ static int mtk_mipi_tx_pll_prepare_mt6983(struct clk_hw *hw)
 	else
 		mtk_mipi_tx_update_bits(mipi_tx, MIPITX_VOLTAGE_SEL_MT6983,
 			FLD_RG_DSI_PRD_REF_SEL, 0x4);
+
+//#ifdef OPLUS_BUG_STABILITY
+	if (oplus_enhance_mipi_strength == 1) {
+		mtk_mipi_tx_update_bits(mipi_tx, MIPITX_VOLTAGE_SEL_MT6983,
+			FLD_RG_DSI_HSTX_LDO_REF_SEL, 0xF << 6);
+	}
+//#endif OPLUS_BUG_STABILITY
 
 	writel(0x0, mipi_tx->regs + MIPITX_PRESERVED_MT6983);
 	writel(0x00FF12E0, mipi_tx->regs + MIPITX_PLL_CON4);

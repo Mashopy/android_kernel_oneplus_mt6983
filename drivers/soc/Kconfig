@@ -24,4 +24,12 @@ source "drivers/soc/xilinx/Kconfig"
 source "drivers/soc/zte/Kconfig"
 source "drivers/soc/kendryte/Kconfig"
 
+#ifdef OPLUS_BOOT_FEATURE
+source "drivers/soc/oplus/boot/Kconfig"
+#endif /* OPLUS_BOOT_FEATURE */
+
+#ifdef OPLUS_TP_BASIC
+source "drivers/soc/oplus/device_info/Kconfig"
+#endif /*#ifdef OPLUS_TP_BASIC*/
+
 endmenu

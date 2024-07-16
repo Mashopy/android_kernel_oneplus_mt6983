@@ -627,6 +627,19 @@
 #define SENSOR_DRVNAME_OV13B10MAIN_MIPI_RAW         "ov13b10main_mipi_raw"
 #define SENSOR_DRVNAME_OV02B10_MIPI_RAW         "ov02b10_mipi_raw"
 
+#define OV64B_SENSOR_ID                         0x5664
+#define SENSOR_ID_OFFSET_22823                        0x0F
+#define OV64B_SENSOR_ID_22823                         (OV64B_SENSOR_ID + SENSOR_ID_OFFSET_22823)
+#define SENSOR_DRVNAME_OV64B_MIPI_RAW_22823           "ov64b_mipi_raw_22823"
+#define IMX890_SENSOR_ID_21871                        (0x0890 + SENSOR_ID_OFFSET_22823)
+#define SENSOR_DRVNAME_IMX890_MIPI_RAW_21871          "imx890_mipi_raw_21871"
+#define S5K3P9SP_SENSOR_ID_22823                      (S5K3P9SP_SENSOR_ID + SENSOR_ID_OFFSET_22823)  //add offset to avoid tuning params mapping error
+#define SENSOR_DRVNAME_S5K3P9SP_MIPI_RAW_22823        "s5k3p9sp_mipi_raw_22823"
+#define IMX355_SENSOR_ID_22823                        (IMX355_SENSOR_ID + SENSOR_ID_OFFSET_22823)  //add offset to avoid tuning params mapping error
+#define SENSOR_DRVNAME_IMX355_MIPI_RAW_22823          "imx355_mipi_raw_22823"
+#define GC02M1_SENSOR_ID_22823                        (GC02M1_SENSOR_ID + SENSOR_ID_OFFSET_22823)  //add offset to avoid tuning params mapping error
+#define SENSOR_DRVNAME_GC02M1_MIPI_RAW_22823          "gc02m1_mipi_raw_22823"
+
 /******************************************************************************
  *
  ******************************************************************************/

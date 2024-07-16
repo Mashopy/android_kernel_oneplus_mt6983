@@ -32,6 +32,17 @@
 #include "mtk_disp_rdma.h"
 #include "platform/mtk_drm_6789.h"
 //#include "swpm_me.h"
+//#ifdef OPLUS_ADFR
+#include "oplus_adfr.h"
+
+unsigned long long last_rdma_start_time = 0;
+extern int g_commit_pid;
+extern int oplus_adfr_cancel_fakeframe(void);
+//#endif
+/* #ifdef OPLUS_FEATURE_ONSCREENFINGERPRINT */
+/* add for ui ready */
+#include "oplus_display_onscreenfingerprint.h"
+/* #endif */ /* OPLUS_FEATURE_ONSCREENFINGERPRINT */
 
 int disp_met_set(void *data, u64 val);
 
@@ -359,6 +370,21 @@ static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 				IF_DEBUG_IRQ_TS(find_work,
 					priv->ddp_comp.ts_works[work_id].irq_time, i)
 			}
+
+			//#ifdef OPLUS_ADFR
+			/* add for mux switch control */
+			if (oplus_adfr_is_support() && (oplus_adfr_get_vsync_mode() == OPLUS_EXTERNAL_TE_TP_VSYNC)) {
+				oplus_adfr_frame_done_vsync_switch(mtk_crtc);
+				IF_DEBUG_IRQ_TS(find_work,
+					priv->ddp_comp.ts_works[work_id].irq_time, i)
+			}
+			//#endif
+
+/* #ifdef OPLUS_FEATURE_ONSCREENFINGERPRINT */
+			if (oplus_ofp_is_support()) {
+				oplus_ofp_pressed_icon_status_update(OPLUS_OFP_FRAME_DONE);
+			}
+/* #endif */ /* OPLUS_FEATURE_ONSCREENFINGERPRINT */
 		}
 		IF_DEBUG_IRQ_TS(find_work,
 			priv->ddp_comp.ts_works[work_id].irq_time, i)
@@ -403,6 +429,14 @@ static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 				wake_up_interruptible(&mtk_crtc->present_fence_wq);
 				IF_DEBUG_IRQ_TS(find_work,
 					priv->ddp_comp.ts_works[work_id].irq_time, i)
+				//#ifdef OPLUS_ADFR
+				last_rdma_start_time = sched_clock();
+				mtk_drm_trace_c("%d|rdmastart|%d", g_commit_pid, 1);
+				mtk_drm_trace_c("%d|rdmastart|%d", g_commit_pid, 0);
+				if (oplus_adfr_is_support()) {
+					oplus_adfr_cancel_fakeframe();
+				}
+				//#endif
 			}
 			IF_DEBUG_IRQ_TS(find_work,
 				priv->ddp_comp.ts_works[work_id].irq_time, i)

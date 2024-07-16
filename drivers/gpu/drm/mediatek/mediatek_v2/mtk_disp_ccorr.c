@@ -57,6 +57,12 @@
 #define CCORR_CLIP(val, min, max) ((val >= max) ? \
 	max : ((val <= min) ? min : val))
 
+//#ifdef OPLUS_BUG_STABILITY
+extern unsigned int oplus_display_brightness;
+//#endif /*OPLUS_BUG_STABILITY*/
+#ifdef OPLUS_FEATURE_DISPLAY
+extern bool g_ccorr_probe_ready;
+#endif /* OPLUS_FEATURE_DISPLAY */
 static unsigned int g_ccorr_8bit_switch[DISP_CCORR_TOTAL];
 static unsigned int g_ccorr_relay_value[DISP_CCORR_TOTAL];
 
@@ -160,9 +166,16 @@ static atomic_t g_ccorr_get_irq = ATOMIC_INIT(0);
 
 /* FOR TRANSITION */
 static DEFINE_SPINLOCK(g_pq_bl_change_lock);
+#ifdef OPLUS_SILKY_ON_START_FRAME
+static int g_old_pq_backlight = 0;
+static int g_pq_backlight = 0;
+static int g_pq_backlight_db = 0;
+static int g_pq_ccorr_event = 0;
+#else
 static int g_old_pq_backlight;
 static int g_pq_backlight;
 static int g_pq_backlight_db;
+#endif /* OPLUS_SILKY_ON_START_FRAME */
 static atomic_t g_ccorr_is_init_valid = ATOMIC_INIT(0);
 
 static DEFINE_MUTEX(g_ccorr_global_lock);
@@ -450,6 +463,18 @@ ccorr_write_coef_unlock:
 	return ret;
 }
 
+#ifdef OPLUS_SILKY_ON_START_FRAME
+void disp_ccorr_on_start_of_frame(void) {
+	if (flag_silky_panel
+		&& (g_old_pq_backlight != g_pq_backlight || g_pq_ccorr_event == 1)) {
+		DDPINFO("disp_ccorr_on_start_of_frame %d->%d , g_pq_ccorr_event(%d)\n", g_old_pq_backlight, g_pq_backlight, g_pq_ccorr_event);
+		g_old_pq_backlight = g_pq_backlight;
+		atomic_set(&g_ccorr_get_irq, 1);
+		wake_up_interruptible(&g_ccorr_get_irq_wq);
+	}
+}
+#endif //OPLUS_SILKY_ON_START_FRAME
+
 void disp_ccorr_on_end_of_frame(struct mtk_ddp_comp *comp)
 {
 	unsigned int intsta;
@@ -482,6 +507,13 @@ void disp_ccorr_on_end_of_frame(struct mtk_ddp_comp *comp)
 static void disp_ccorr_set_interrupt(struct mtk_ddp_comp *comp,
 					int enabled)
 {
+#ifdef OPLUS_SILKY_ON_START_FRAME
+	if (flag_silky_panel) {
+		DDPINFO("%s: use mutex sof irq instead ccorr irq", __func__);
+		return;
+	}
+#endif //OPLUS_SILKY_ON_START_FRAME
+
 	if (default_comp == NULL)
 		default_comp = comp;
 
@@ -627,8 +659,13 @@ void disp_pq_notify_backlight_changed(int bl_1024)
 	DDPINFO("%s: %d\n", __func__, bl_1024);
 
 	if (m_new_pq_persist_property[DISP_PQ_CCORR_SILKY_BRIGHTNESS]) {
-		if (default_comp != NULL &&
-			g_ccorr_relay_value[index_of_ccorr(default_comp->id)] != 1) {
+//#ifndef OPLUS_BUG_STABILITY
+//		if (default_comp != NULL &&
+//			g_ccorr_relay_value[index_of_ccorr(default_comp->id)] != 1) {
+//#else
+		/* to keep value of backlight for FOD while screen is turning */
+		if (default_comp != NULL) {
+//#endif OPLUS_BUG_STABILITY
 			disp_ccorr_set_interrupt(default_comp, 1);
 
 			if (default_comp != NULL &&
@@ -979,6 +1016,9 @@ int mtk_drm_ioctl_set_ccorr(struct drm_device *dev, void *data,
 			DDPINFO("brightness = %d, silky_bright_flag = %d",
 				ccorr_config->FinalBacklight,
 				ccorr_config->silky_bright_flag);
+//#ifdef OPLUS_BUG_STABILITY
+			oplus_display_brightness = ccorr_config->FinalBacklight;
+//#endif OPLUS_BUG_STABILITY
 			mtk_leds_brightness_set("lcd-backlight",
 				ccorr_config->FinalBacklight);
 		}
@@ -991,6 +1031,26 @@ int mtk_drm_ioctl_set_ccorr(struct drm_device *dev, void *data,
 	}
 }
 
+#ifdef OPLUS_FEATURE_DISPLAY
+static bool is_led_need_ccorr(unsigned int connector_id)
+{
+       unsigned int crtc0_connector_id = 0;
+       struct mtk_ddp_comp *output_comp = NULL;
+
+       if (default_comp == NULL || default_comp->mtk_crtc == NULL) {
+               DDPPR_ERR("%s: null pointer!\n", __func__);
+               return false;
+       }
+       output_comp = mtk_ddp_comp_request_output(default_comp->mtk_crtc);
+       if (output_comp == NULL) {
+               DDPPR_ERR("%s: output_comp is null!\n", __func__);
+               return false;
+       }
+       mtk_ddp_comp_io_cmd(output_comp, NULL, GET_CRTC0_CONNECTOR_ID, &crtc0_connector_id);
+       return (connector_id == crtc0_connector_id);
+}
+#endif /* OPLUS_FEATURE_DISPLAY */
+
 #ifdef CONFIG_LEDS_BRIGHTNESS_CHANGED
 int led_brightness_changed_event_to_pq(struct notifier_block *nb, unsigned long event,
 	void *v)
@@ -1002,6 +1062,13 @@ int led_brightness_changed_event_to_pq(struct notifier_block *nb, unsigned long 
 
 	switch (event) {
 	case LED_BRIGHTNESS_CHANGED:
+#ifdef OPLUS_FEATURE_DISPLAY
+		if (!is_led_need_ccorr(led_conf->connector_id)) {
+				DDPINFO ("connector id %d no need aal\n", led_conf->connector_id);
+				led_conf->aal_enable = 0;
+				break;
+		}
+#endif /* OPLUS_FEATURE_DISPLAY */
 		trans_level = led_conf->cdev.brightness;
 
 		disp_pq_notify_backlight_changed(trans_level);
@@ -1038,6 +1105,16 @@ int mtk_drm_ioctl_ccorr_eventctl(struct drm_device *dev, void *data,
 	//mtk_crtc_user_cmd(crtc, comp, EVENTCTL, data);
 	DDPINFO("ccorr_eventctl, enabled = %d\n", *enabled);
 
+#ifdef OPLUS_SILKY_ON_START_FRAME
+	if (flag_silky_panel) {
+		if (enabled) {
+			DDPINFO("to flush PQ ccorr-delayed FIFO(%d)\n", *enabled);
+			g_pq_ccorr_event = *enabled ;
+		}
+		return ret;
+	}
+#endif //OPLUS_SILKY_ON_START_FRAME
+
 	if ((!atomic_read(&g_irq_backlight_change)) || (*enabled == 1))
 		disp_ccorr_set_interrupt(comp, *enabled);
 
@@ -1048,6 +1125,13 @@ int mtk_drm_ioctl_ccorr_get_irq(struct drm_device *dev, void *data,
 		struct drm_file *file_priv)
 {
 	int ret = 0;
+//#ifdef OPLUS_BUG_STABILITY
+	struct mtk_drm_private *private;
+	struct drm_crtc *crtc = 0;
+	int *pData = (int *) data;
+	struct mtk_drm_crtc *mtk_crtc = 0;
+	struct mtk_panel_ext *ext = 0;
+//#endif OPLUS_BUG_STABILITY
 
 	atomic_set(&g_ccorr_is_init_valid, 1);
 
@@ -1057,6 +1141,26 @@ int mtk_drm_ioctl_ccorr_get_irq(struct drm_device *dev, void *data,
 		DDPPR_ERR("%s: failed", __func__);
 		ret = -EFAULT;
 	}
+//#ifdef OPLUS_BUG_STABILITY
+	if (dev && dev->dev_private){
+		private = dev->dev_private;
+		crtc = private->crtc[0];
+	}
+	if (flag_silky_panel & FRAME_SYNC_DELAY_60HZ_120HZ) {
+		if (g_cur_fps == 60)
+			*pData |= (1 << 16);
+		else if (g_cur_fps == 120)
+			*pData |= (2 << 16);
+	}
+	if (crtc) {
+		mtk_crtc = to_mtk_crtc(crtc);
+		ext = mtk_crtc->panel_ext;
+	}
+	// to mark HF-PWM is on
+	if (ext && ext->params && ext->params->f_high_pwm_en) {
+		*pData += (10 << 16);
+	}
+//#endif OPLUS_BUG_STABILITY
 
 	return ret;
 }
@@ -1551,6 +1655,9 @@ static int mtk_disp_ccorr_probe(struct platform_device *pdev)
 	if (comp_id == DDP_COMPONENT_CCORR0)
 		mtk_leds_register_notifier(&leds_init_notifier);
 #endif
+#ifdef OPLUS_FEATURE_DISPLAY
+	g_ccorr_probe_ready = true;
+#endif /* OPLUS_FEATURE_DISPLAY */
 	DDPINFO("%s-\n", __func__);
 
 	return ret;

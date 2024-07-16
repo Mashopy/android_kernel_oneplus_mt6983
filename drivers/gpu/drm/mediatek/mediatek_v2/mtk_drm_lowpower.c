@@ -18,6 +18,10 @@
 #include "mtk_drm_ddp_comp.h"
 #include "mtk_drm_mmp.h"
 
+//#ifdef OPLUS_ADFR
+#include "oplus_adfr.h"
+//#endif
+
 #define MAX_ENTER_IDLE_RSZ_RATIO 300
 
 static void mtk_drm_idlemgr_enable_crtc(struct drm_crtc *crtc);
@@ -113,6 +117,12 @@ static void mtk_drm_idlemgr_enter_idle_nolock(struct drm_crtc *crtc)
 
 	if (!output_comp)
 		return;
+
+//#ifdef OPLUS_ADFR
+	if (oplus_adfr_is_support() && !index && !mtk_crtc->ddp_mode) {
+		oplus_adfr_handle_idle_mode(crtc, true);
+	}
+//#endif OPLUS_ADFR
 
 	mode = mtk_dsi_is_cmd_mode(output_comp);
 	CRTC_MMP_EVENT_START(index, enter_idle, mode, 0);
