@@ -478,7 +478,10 @@ struct mtk_cam_ctx {
 	struct mtk_cam_working_buf_list processing_img_buffer_list;
 
 	atomic_t enqueued_frame_seq_no;
+	#ifdef OPLUS_FEATURE_CAMERA_COMMON
 	atomic_t composed_delay_seq_no;
+	u64 composed_delay_sof_tsns;
+	#endif /*OPLUS_FEATURE_CAMERA_COMMON*/
 	unsigned int composed_frame_seq_no;
 	unsigned int dequeued_frame_seq_no;
 	unsigned int component_dequeued_frame_seq_no;
@@ -500,7 +503,6 @@ struct mtk_cam_ctx {
 	struct mutex cleanup_lock;
 
 	struct mtk_cam_hsf_ctrl *hsf;
-
 	/* Watchdog data */
 	spinlock_t watchdog_pipe_lock;
 	unsigned int enabled_watchdog_pipe;

@@ -97,6 +97,9 @@ enum DISP_PMQOS_SLOT {
 	(DISP_SLOT_PRESENT_FENCE(MAX_CRTC))
 #define DISP_SLOT_SUBTRACTOR_WHEN_FREE(n)                                      \
 	(DISP_SLOT_SUBTRACTOR_WHEN_FREE_BASE + (0x4 * (n)))
+#ifdef OPLUS_FEATURE_DISPLAY
+#define DISP_SLOT_ESD_READ_BASE DISP_SLOT_SUBTRACTOR_WHEN_FREE(OVL_LAYER_NR)
+#endif
 #define DISP_SLOT_RDMA_FB_IDX (DISP_SLOT_SUBTRACTOR_WHEN_FREE(MAX_PLANE_NR))
 #define DISP_SLOT_RDMA_FB_ID (DISP_SLOT_RDMA_FB_IDX + 0x4)
 #define DISP_SLOT_CUR_HRT_IDX (DISP_SLOT_RDMA_FB_ID + 0x4)
@@ -373,6 +376,18 @@ enum MTK_CRTC_PROP {
 	CRTC_PROP_MSYNC2_0_ENABLE,
 	CRTC_PROP_SKIP_CONFIG,
 	CRTC_PROP_OVL_DSI_SEQ,
+//#ifdef OPLUS_ADFR
+	CRTC_PROP_AUTO_MODE,
+	CRTC_PROP_AUTO_FAKE_FRAME,
+	CRTC_PROP_AUTO_MIN_FPS,
+//#endif OPLUS_ADFR
+//#ifdef OPLUS_BUG_STABILITY
+	CRTC_PROP_HW_BLENDSPACE,
+//#ifdef OPLUS_BUG_STABILITY
+//#ifdef OPLUS_FEATURE_LOCAL_HDR
+	CRTC_PROP_HW_BRIGHTNESS,
+	CRTC_PROP_BRIGHTNESS_NEED_SYNC,
+//#endif OPLUS_FEATURE_LOCAL_HDR
 	CRTC_PROP_MAX,
 };
 
@@ -854,6 +869,18 @@ struct mtk_drm_crtc {
 	int force_high_enabled;
 	bool is_dsc_output_swap;
 	bool resume_frame;
+//#ifdef OPLUS_BUG_STABILITY
+	int blendspace;
+//#endif OPLUS_BUG_STABILITY
+//#ifdef OPLUS_FEATURE_LOCAL_HDR
+	/* indicate that whether the current frame backlight has been updated */
+	bool oplus_backlight_updated;
+#ifdef OPLUS_FEATURE_DISPLAY_APOLLO
+	int oplus_pending_backlight;
+	bool oplus_backlight_need_sync;
+	bool oplus_power_on;
+#endif /* OPLUS_FEATURE_DISPLAY_APOLLO */
+//#endif OPLUS_FEATURE_LOCAL_HDR
 };
 
 struct mtk_crtc_state {
@@ -891,6 +918,9 @@ struct mtk_cmdq_cb_data {
 	void __iomem *mmlsys_reg_va;
 	bool is_mml;
 	unsigned int pres_fence_idx;
+//#ifdef OPLUS_BUG_STABILITY
+	unsigned int bl;
+//#endif OPLUS_BUG_STABILITY
 	unsigned int hrt_idx;
 	struct drm_framebuffer *wb_fb;
 	unsigned int wb_fence_idx;
@@ -1105,5 +1135,16 @@ int mtk_drm_ioctl_set_pq_caps(struct drm_device *dev, void *data,
 void mtk_crtc_prepare_instr(struct drm_crtc *crtc);
 unsigned int check_dsi_underrun_event(void);
 void clear_dsi_underrun_event(void);
+//#ifdef OPLUS_FEATURE_ONSCREENFINGERPRINT
+void mtk_atomic_hbm_bypass_pq(struct drm_crtc *crtc,
+		struct cmdq_pkt *handle, int en);
+void mtk_drm_send_lcm_cmd_prepare(struct drm_crtc *crtc,
+	struct cmdq_pkt **cmdq_handle);
+void mtk_drm_send_lcm_cmd_flush(struct drm_crtc *crtc,
+	struct cmdq_pkt **cmdq_handle, bool sync);
+
+int mtk_crtc_set_high_pwm_switch(struct drm_crtc *crtc, unsigned int en);
+
+//#endif OPLUS_FEATURE_ONSCREENFINGERPRINT
 void mtk_crtc_update_gce_event(struct mtk_drm_crtc *mtk_crtc);
 #endif /* MTK_DRM_CRTC_H */

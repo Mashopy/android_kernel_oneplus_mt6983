@@ -1478,4 +1478,6 @@ config REGULATOR_FAN53870
 	  Set Y or M to select this feature for specific fan53870,
 	  and set N to disable.
 
+config REGULATOR_MULTI_REG
+	tristate "multi regulator driver for fan53870 and wl2868x"
 endif

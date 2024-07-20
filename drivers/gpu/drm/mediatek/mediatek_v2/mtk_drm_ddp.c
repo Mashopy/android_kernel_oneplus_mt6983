@@ -24,6 +24,9 @@
 #include "mtk_drm_mmp.h"
 #include "mtk_disp_aal.h"
 #include "mtk_disp_c3d.h"
+//#ifdef OPLUS_BUG_STABILITY
+#include "mtk_disp_ccorr.h"
+//#endif OPLUS_BUG_STABILITY
 #include "mtk_disp_gamma.h"
 #include "platform/mtk_drm_6789.h"
 #ifdef CONFIG_MTK_SMI_EXT
@@ -14812,6 +14815,9 @@ void mtk_disp_mutex_submit_sof(struct mtk_disp_mutex *mutex)
 	}
 }
 
+#ifdef OPLUS_FEATURE_DISPLAY_APOLLO
+unsigned long long mutex_sof_ns = 0;
+#endif /* OPLUS_FEATURE_DISPLAY_APOLLO */
 static irqreturn_t mtk_disp_mutex_irq_handler(int irq, void *dev_id)
 {
 	struct mtk_ddp *ddp = dev_id;
@@ -14856,6 +14862,9 @@ static irqreturn_t mtk_disp_mutex_irq_handler(int irq, void *dev_id)
 		if (val & (0x1 << m_id)) {
 			DDPIRQ("[IRQ] mutex%d sof!\n", m_id);
 			DRM_MMP_MARK(mutex[m_id], val, 0);
+#ifdef OPLUS_FEATURE_DISPLAY_APOLLO
+			mutex_sof_ns = ktime_get();
+#endif /* OPLUS_FEATURE_DISPLAY_APOLLO */
 
 			if (disp_helper_get_stage() == DISP_HELPER_STAGE_NORMAL) {
 				irq_debug[3] = sched_clock();
@@ -14872,6 +14881,10 @@ static irqreturn_t mtk_disp_mutex_irq_handler(int irq, void *dev_id)
 			disp_gamma_on_start_of_frame();
 			irq_debug[8] = sched_clock();
 #endif
+
+#ifdef OPLUS_SILKY_ON_START_FRAME
+			disp_ccorr_on_start_of_frame();
+#endif //OPLUS_SILKY_ON_START_FRAME
 		}
 	}
 

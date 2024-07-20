@@ -1,4 +1,6 @@
 subdir-ccflags-y += -Werror
+ccflags-y += -I$(srctree)/drivers/gpu/drm/oplus
+ccflags-y += -I$(srctree)/drivers/gpu/drm/mediatek/mediatek_v2
 
 mediatek-drm-y := mtk_drm_drv.o \
 		  mtk_disp_tdshp.o \
@@ -77,6 +79,18 @@ endif
 
 mediatek-drm-$(CONFIG_DRM_FBDEV_EMULATION) += mtk_drm_fbdev.o
 
+#build oplus file into mediatek_drm.ko
+mediatek-drm-y += ../../oplus/oplus_display_private_api.o \
+         ../../oplus/oplus_display_panel_power.o \
+         ../../oplus/oplus_display_common.o \
+         ../../oplus/oplus_display_dc.o \
+         ../../oplus/oplus_display_onscreenfingerprint.o \
+         ../../oplus/oplus_display_mtk_debug.o \
+         ../../oplus/oplus_display_mtk_debug.o \
+         ../../oplus/oplus_display_panel.o \
+         ../../oplus/oplus_adfr.o \
+         ../../oplus/oplus_display_temp_compensation.o
+
 obj-$(CONFIG_DRM_MEDIATEK) += mediatek-drm.o
 obj-$(CONFIG_DRM_MEDIATEK) += mtk_sync.o
 
@@ -123,6 +137,8 @@ ccflags-y += -DSHARE_WROT_SRAM
 endif
 
 ccflags-$(CONFIG_MTK_CMDQ_MBOX_EXT) += -I$(srctree)/drivers/misc/mediatek/cmdq/mailbox
+subdir-ccflags-y += -I$(srctree)/drivers/staging/android/ion/ \
+		    -I$(srctree)/drivers/staging/android/ion/mtk
 
 #ccflags-y += -DDRM_MMPATH
 ccflags-y += -DNOT_SUPPORT_CABC_HW

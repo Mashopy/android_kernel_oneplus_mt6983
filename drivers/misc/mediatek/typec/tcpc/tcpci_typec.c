@@ -687,14 +687,22 @@ static inline int typec_set_polarity(struct tcpc_device *tcpc,
 }
 
 static inline int typec_set_plug_orient(struct tcpc_device *tcpc,
+#ifndef OPLUS_FEATURE_CHG_BASIC
 				uint8_t res, bool polarity)
+#else
+				uint8_t pull, bool polarity)
+#endif
 {
 	int rv = typec_set_polarity(tcpc, polarity);
 
 	if (rv)
 		return rv;
 
+#ifndef OPLUS_FEATURE_CHG_BASIC
 	return tcpci_set_cc(tcpc, res);
+#else
+	return tcpci_set_cc(tcpc, pull);
+#endif
 }
 
 static void typec_source_attached_with_vbus_entry(struct tcpc_device *tcpc)
@@ -719,7 +727,11 @@ static inline void typec_source_attached_entry(struct tcpc_device *tcpc)
 #endif	/* CONFIG_TYPEC_CAP_ROLE_SWAP */
 
 	typec_set_plug_orient(tcpc,
+#ifndef OPLUS_FEATURE_CHG_BASIC
 		tcpc->typec_local_rp_level,
+#else
+		TYPEC_CC_PULL(tcpc->typec_local_rp_level, TYPEC_CC_RP),
+#endif
 		typec_check_cc2(TYPEC_CC_VOLT_RD));
 
 	tcpci_report_power_control(tcpc, true);
@@ -1391,9 +1403,14 @@ static inline bool typec_audio_acc_sink_vbus(
 			RICHTEK_PD_COMPLIANCE_FAKE_EMRAK_ONLY
 static bool typec_is_fake_ra_rp30(struct tcpc_device *tcpc)
 {
+#ifndef OPLUS_FEATURE_CHG_BASIC
 	if (tcpc->typec_local_cc == TYPEC_CC_RP_3_0
 		|| tcpc->typec_local_cc == TYPEC_CC_DRP_3_0) {
 		tcpci_set_cc(tcpc, TYPEC_CC_RP_DFT);
+#else
+	if (TYPEC_CC_PULL_GET_RP_LVL(tcpc->typec_local_cc) == TYPEC_RP_3_0) {
+		__tcpci_set_cc(tcpc, TYPEC_CC_RP_DFT);
+#endif
 		usleep_range(1000, 2000);
 		return tcpci_get_cc(tcpc) != 0;
 	}
@@ -1530,7 +1547,11 @@ bool tcpc_typec_is_act_as_sink_role(struct tcpc_device *tcpc)
 	bool as_sink = true;
 	uint8_t cc_sum;
 
+#ifndef OPLUS_FEATURE_CHG_BASIC
 	switch (tcpc->typec_local_cc & 0x07) {
+#else
+	switch (TYPEC_CC_PULL_GET_RES(tcpc->typec_local_cc)) {
+#endif
 	case TYPEC_CC_RP:
 		as_sink = false;
 		break;
@@ -1641,7 +1662,12 @@ static inline void typec_attach_wait_entry(struct tcpc_device *tcpc)
 		TYPEC_NEW_STATE(typec_attachwait_snk);
 	else {
 		/* Advertise Rp level before Attached.SRC Ellisys 3.1.6359 */
+#ifndef OPLUS_FEATURE_CHG_BASIC
 		tcpci_set_cc(tcpc, tcpc->typec_local_rp_level);
+#else
+		tcpci_set_cc(tcpc,
+			TYPEC_CC_PULL(tcpc->typec_local_rp_level, TYPEC_CC_RP));
+#endif
 		TYPEC_NEW_STATE(typec_attachwait_src);
 	}
 
@@ -1784,8 +1810,8 @@ static inline bool typec_is_cc_attach(struct tcpc_device *tcpc)
 				(cc_res != TYPEC_CC_VOLT_RA))
 			cc_attach = true;
 		break;
-#endif	/* CONFIG_TYPEC_CAP_DBGACC_SNK */
-	case TYPEC_ATTACHED_AUDIO:
+#endif /* CONFIG_TYPEC_CAP_DBGACC_SNK */
+	case typec_audioaccessory:
 		if (typec_check_cc_both(TYPEC_CC_VOLT_RA))
 			cc_attach = true;
 		break;
@@ -2089,8 +2115,15 @@ int tcpc_typec_handle_cc_change(struct tcpc_device *tcpc)
 	if (typec_is_cc_attach(tcpc)) {
 		typec_disable_low_power_mode(tcpc);
 		typec_attach_wait_entry(tcpc);
+#ifndef OPLUS_FEATURE_CHG_BASIC
 		if (tcpc->tcpc_flags & TCPC_FLAGS_FLOATING_GROUND)
 			tcpci_set_floating_ground(tcpc, false);
+#else
+#if !CONFIG_WD0_IRQ_ONLY
+		if (tcpc->tcpc_flags & TCPC_FLAGS_FLOATING_GROUND)
+			tcpci_set_floating_ground(tcpc, false);
+#endif /* CONFIG_WD0_IRQ_ONLY = 0 */
+#endif
 		if ((tcpc->tcpc_flags & TCPC_FLAGS_TYPEC_OTP) &&
 			((typec_get_cc1() + typec_get_cc2()) >= TYPEC_CC_VOLT_SNK_DFT))
 			tcpci_set_otp_fwen(tcpc, true);
@@ -2553,6 +2586,16 @@ static inline int typec_handle_vbus_absent(struct tcpc_device *tcpc)
 	return 0;
 }
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+static bool oplus_charge_enable = 0;
+bool oplus_tcpc_direct_charge_en( bool enable)
+{
+	oplus_charge_enable = enable;
+	return oplus_charge_enable;
+}
+EXPORT_SYMBOL(oplus_tcpc_direct_charge_en);
+#endif /* OPLUS_FEATURE_CHG_BASIC */
+
 int tcpc_typec_handle_ps_change(struct tcpc_device *tcpc, int vbus_level)
 {
 	tcpc->typec_reach_vsafe0v = false;
@@ -2587,6 +2630,13 @@ int tcpc_typec_handle_ps_change(struct tcpc_device *tcpc, int vbus_level)
 
 	if (vbus_level >= TCPC_VBUS_VALID)
 		return typec_handle_vbus_present(tcpc);
+
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	if(oplus_charge_enable) {
+		return typec_handle_vbus_present(tcpc);
+	}
+	pr_info("[%s]oplus_charge_enable=0x%x\n", __func__,oplus_charge_enable);
+#endif /* OPLUS_FEATURE_CHG_BASIC */
 
 	return typec_handle_vbus_absent(tcpc);
 }
@@ -2696,6 +2746,7 @@ int tcpc_typec_swap_role(struct tcpc_device *tcpc)
 }
 #endif /* CONFIG_TYPEC_CAP_ROLE_SWAP */
 
+#ifndef OPLUS_FEATURE_CHG_BASIC
 int tcpc_typec_set_rp_level(struct tcpc_device *tcpc, uint8_t res)
 {
 	switch (res) {
@@ -2722,6 +2773,24 @@ int tcpc_typec_set_rp_level(struct tcpc_device *tcpc, uint8_t res)
 
 	return 0;
 }
+#else
+int tcpc_typec_set_rp_level(struct tcpc_device *tcpc, uint8_t rp_lvl)
+{
+	switch (rp_lvl) {
+	case TYPEC_RP_DFT:
+	case TYPEC_RP_1_5:
+	case TYPEC_RP_3_0:
+		TYPEC_INFO("TypeC-Rp: %d\n", rp_lvl);
+		tcpc->typec_local_rp_level = rp_lvl;
+		break;
+	default:
+		TYPEC_INFO("TypeC-Unknown-Rp (%d)\n", rp_lvl);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#endif
 
 int tcpc_typec_error_recovery(struct tcpc_device *tcpc)
 {

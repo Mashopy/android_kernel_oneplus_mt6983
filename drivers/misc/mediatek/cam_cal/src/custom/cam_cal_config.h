@@ -112,6 +112,9 @@ struct STRUCT_CAM_CAL_LSC_INFO {
 /*****************************************************************************
  * Structures
  *****************************************************************************/
+//#ifdef OPLUS_FEATURE_CAMERA_COMMON
+static unsigned int dump_enable;
+//#endif OPLUS_FEATURE_CAMERA_COMMON
 
 struct STRUCT_CALIBRATION_ITEM_STRUCT {
 	unsigned short Include; //calibration layout include this item?

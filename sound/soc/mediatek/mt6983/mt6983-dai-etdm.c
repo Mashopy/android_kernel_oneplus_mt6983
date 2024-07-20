@@ -332,7 +332,6 @@ static int etdm_lpbk_get(struct snd_kcontrol *kcontrol,
 	value &= mask;
 	value >>= shift;
 	ucontrol->value.enumerated.item[0] = value;
-
 	if (value == 0xa)
 		ucontrol->value.enumerated.item[0] = 1;
 	else

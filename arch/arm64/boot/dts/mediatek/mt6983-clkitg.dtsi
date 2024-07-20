@@ -25,7 +25,9 @@
 			<&vlp_cksys_clk CLK_VLP_CKSYS_SRCK_SEL>,
 			<&vlp_cksys_clk CLK_VLP_CKSYS_SRAMRC_SEL>,
 			<&topckgen_clk CLK_TOP_PWRAP_ULPOSC_SEL>,
+/*#ifndef OPLUS_BUG_STABILITY
 			<&topckgen_clk CLK_TOP_DISP_PWM_SEL>,
+#endif OPLUS_BUG_STABILITY*/
 			<&topckgen_clk CLK_TOP_SPMI_P_MST_SEL>,
 			<&topckgen_clk CLK_TOP_SPMI_M_MST_SEL>,
 			<&topckgen_clk CLK_TOP_MEM_SUB_SEL>,

@@ -270,8 +270,13 @@
 			mt6373_vmch: VMCH {
 				regulator-compatible = "VMCH";
 				regulator-name = "mt6373_vmch";
+/*#ifdef OPLUS_BUG_STABILITY*/
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+/*#else
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <3500000>;
+#endif OPLUS_BUG_STABILITY*/
 				regulator-enable-ramp-delay = <720>;
 				regulator-allowed-modes = <0 2>;
 			};
@@ -331,6 +336,7 @@
 				regulator-enable-ramp-delay = <720>;
 				regulator-allowed-modes = <0 2>;
 			};
+/*#ifndef OPLUS_BUG_STABILITY
 			mt6373_vmch_eint_high: VMCH_EINT_HIGH {
 				regulator-compatible = "VMCH_EINT_HIGH";
 				regulator-name = "mt6373_vmch_eint_high";
@@ -347,6 +353,7 @@
 				regulator-enable-ramp-delay = <720>;
 				regulator-allowed-modes = <0 2>;
 			};
+#endif OPLUS_BUG_STABILITY*/
 		};
 	};
 };

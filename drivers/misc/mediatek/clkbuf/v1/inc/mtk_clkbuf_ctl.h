@@ -44,5 +44,8 @@ extern int srclken_dump_sta_log(void);
 extern int srclken_dump_cfg_log(void);
 extern int srclken_dump_last_sta_log(void);
 extern int clk_buf_voter_ctrl_by_id(const uint8_t subsys_id, enum RC_CTRL_CMD rc_req);
+//#ifdef OPLUS_FEATURE_CAMERA_COMMON
+extern int clk_buf_set_voter_by_name(const char *xo_name, const char *voter);
+//#endif
 
 #endif /* CLKBUF_CTL_H */

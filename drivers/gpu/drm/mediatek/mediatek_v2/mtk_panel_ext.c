@@ -20,6 +20,9 @@ struct _panel_rst_ctx {
 };
 
 static DEFINE_MUTEX(panel_ext_lock);
+#ifdef OPLUS_FEATURE_DISPLAY
+static DEFINE_MUTEX(panel_boot_lock);
+#endif /* OPLUS_FEATURE_DISPLAY */
 static LIST_HEAD(panel_ext_list);
 static struct _panel_rst_ctx panel_rst_ctx;
 static enum mtk_lcm_version g_lcm_version;
@@ -88,6 +91,20 @@ int mtk_panel_tch_rst(struct drm_panel *panel)
 	return ret;
 }
 EXPORT_SYMBOL(mtk_panel_tch_rst);
+
+#ifdef OPLUS_FEATURE_DISPLAY
+void mtk_panel_lock(void)
+{
+	mutex_lock(&panel_boot_lock);
+}
+EXPORT_SYMBOL(mtk_panel_lock);
+
+void mtk_panel_unlock(void)
+{
+	mutex_unlock(&panel_boot_lock);
+}
+EXPORT_SYMBOL(mtk_panel_unlock);
+#endif /* OPLUS_FEATURE_DISPLAY */
 
 int mtk_panel_detach(struct mtk_panel_ctx *ctx)
 {

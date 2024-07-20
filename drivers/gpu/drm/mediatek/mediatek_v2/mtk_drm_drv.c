@@ -61,12 +61,25 @@
 #endif
 
 #include "mtk_drm_mmp.h"
+//#ifdef OPLUS_BUG_STABILITY
+#include <mt-plat/mtk_boot_common.h>
+extern unsigned long silence_mode;
+//#endif OPLUS_BUG_STABILITY
 /* *******Panel Master******** */
 #include "mtk_fbconfig_kdebug.h"
 #include "mtk_dp_api.h"
 //#include "swpm_me.h"
 //#include "include/pmic_api_buck.h"
 #include <../drivers/gpu/drm/mediatek/mml/mtk-mml.h>
+//#ifdef OPLUS_ADFR
+#include "oplus_adfr.h"
+#include "oplus_display_private_api.h"
+#include "oplus/oplus_display_panel.h"
+//#endif OPLUS_ADFR
+//#ifdef OPLUS_FEATURE_ONSCREENFINGERPRINT
+/* add for ofp init */
+#include "oplus_display_onscreenfingerprint.h"
+//#endif OPLUS_FEATURE_ONSCREENFINGERPRINT
 
 #include "../mml/mtk-mml.h"
 #include "../mml/mtk-mml-drm-adaptor.h"
@@ -1492,6 +1505,18 @@ static void mtk_atomic_complete(struct mtk_drm_private *private,
 	mtk_set_first_config(drm, state);
 
 	mtk_drm_enable_trig(drm, state);
+	
+//#ifdef OPLUS_ADFR
+	if (oplus_adfr_is_support()) {
+		unsigned int crtc_mask = mtk_atomic_crtc_mask(drm, state);
+		if ((crtc_mask & BIT(0)) != 0) {
+			struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(private->crtc[0]);
+			if (mtk_crtc && !mtk_crtc->ddp_mode) {
+				oplus_adfr_dsi_display_auto_mode_update(drm);
+			}
+		}
+	}
+//#endif
 
 	mtk_atomic_disp_rsz_roi(drm, state);
 
@@ -5386,6 +5411,15 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 	mtk_drm_svp_init(drm);
 
 	PanelMaster_Init(drm);
+//#ifdef OPLUS_ADFR
+	if (oplus_adfr_is_support()) {
+		oplus_adfr_init(drm, private);
+	}
+//#endif
+//#ifdef OPLUS_FEATURE_ONSCREENFINGERPRINT
+	/* add for ofp */
+	oplus_ofp_init(private);
+//#endif OPLUS_FEATURE_ONSCREENFINGERPRINT
 	if (mtk_drm_helper_get_opt(private->helper_opt,
 			MTK_DRM_OPT_MMDVFS_SUPPORT))
 		mtk_drm_mmdvfs_init(drm->dev);
@@ -6752,6 +6786,15 @@ SKIP_SIDE_DISP:
 
 	disp_dts_gpio_init(dev, private);
 
+//#ifdef OPLUS_BUG_STABILITY
+	pr_err("get_boot_mode() is %d\n", get_boot_mode());
+	if ((get_boot_mode() == SILENCE_BOOT)
+			||(get_boot_mode() == OPLUS_SAU_BOOT)) {
+		pr_err("%s OPLUS_SILENCE_BOOT set silence_mode to 1\n", __func__);
+		silence_mode = 1;
+	}
+//#endif OPLUS_BUG_STABILITY
+
 	memcpy(&mydev, pdev, sizeof(mydev));
 
 	ret = component_master_add_with_match(dev, &mtk_drm_ops, match);
@@ -6774,14 +6817,51 @@ err_node:
 	return ret;
 }
 
+#ifdef OPLUS_FEATURE_DISPLAY
+extern int mtkfb_set_backlight_level(unsigned int level);
+#endif /* OPLUS_FEATURE_DISPLAY */
+
 static void mtk_drm_shutdown(struct platform_device *pdev)
 {
 	struct mtk_drm_private *private = platform_get_drvdata(pdev);
 	struct drm_device *drm = private->drm;
+#ifdef OPLUS_FEATURE_DISPLAY
+	struct drm_crtc *crtc;
+	struct mtk_drm_crtc *mtk_crtc;
+	struct mtk_ddp_comp *output_comp;
+#endif /* OPLUS_FEATURE_DISPLAY */
 
 	if (drm) {
 		DDPMSG("%s\n", __func__);
 		drm_atomic_helper_shutdown(drm);
+
+#ifdef OPLUS_FEATURE_DISPLAY
+		/* only for crtc0 */
+		crtc = list_first_entry(&(drm)->mode_config.crtc_list,
+					typeof(*crtc), head);
+		if (IS_ERR_OR_NULL(crtc)) {
+			DDPPR_ERR("%s failed to find crtc\n", __func__);
+			return ;
+		}
+		DDPMSG("%s crtc0 exit\n", __func__);
+
+		mtk_crtc = to_mtk_crtc(crtc);
+		if (true == mtk_crtc->enabled) {
+			DDPMSG("%s, set main panel backlight 0\n", __func__);
+			mtkfb_set_backlight_level(0);
+
+			output_comp = mtk_ddp_comp_request_output(mtk_crtc);
+			DDPMSG("%s, output_comp = %d\n", __func__, output_comp);
+			if (unlikely(!output_comp)) {
+				DDPPR_ERR("%s: invalid output comp\n", __func__);
+				return ;
+			}
+
+			DDPMSG("%s CONNECTOR_PANEL_DISABLE\n", __func__);
+				mtk_ddp_comp_io_cmd(output_comp, NULL,
+					CONNECTOR_PANEL_SHUTDOWN, NULL);
+		}
+#endif /* OPLUS_FEATURE_DISPLAY */
 	}
 }
 
@@ -6978,6 +7058,10 @@ static int __init mtk_drm_init(void)
 			goto err;
 		}
 	}
+#ifdef OPLUS_FEATURE_DISPLAY
+	oplus_display_private_api_init();
+	oplus_display_panel_init();
+#endif /* OPLUS_FEATURE_DISPLAY */
 	DDPINFO("%s-\n", __func__);
 
 	return 0;
@@ -6995,6 +7079,10 @@ static void __exit mtk_drm_exit(void)
 
 	for (i = ARRAY_SIZE(mtk_drm_drivers) - 1; i >= 0; i--)
 		platform_driver_unregister(mtk_drm_drivers[i]);
+#ifdef OPLUS_FEATURE_DISPLAY
+	oplus_display_private_api_exit();
+	oplus_display_panel_exit();
+#endif /* OPLUS_FEATURE_DISPLAY */
 }
 module_init(mtk_drm_init);
 module_exit(mtk_drm_exit);

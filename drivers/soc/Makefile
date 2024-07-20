@@ -29,3 +29,12 @@ obj-$(CONFIG_PLAT_VERSATILE)	+= versatile/
 obj-y				+= xilinx/
 obj-$(CONFIG_ARCH_ZX)		+= zte/
 obj-$(CONFIG_SOC_KENDRYTE)	+= kendryte/
+
+#ifdef OPLUS_BOOT_FEATURE
+obj-y += oplus/boot/
+#endif /* OPLUS_BOOT_FEATURE */
+
+#ifdef OPLUS_TP_BASIC
+obj-$(CONFIG_OPLUS_DEVICE_IFNO)		+= oplus/device_info/
+#endif /* OPLUS_TP_BASIC */
+

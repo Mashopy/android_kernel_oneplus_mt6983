@@ -356,11 +356,13 @@ static void __request_audio(int id)
 	queue_work(audio_boost_inst.wq, &(audio_boost_inst.work));
 }
 
+#if IS_ENABLED(CONFIG_USB_MTK_HDRC)
 static int update_time_audio(void)
 {
 	ktime_get_ts64(&audio_boost_inst.tv_ref_time);
 	return 1;
 }
+#endif
 
 static bool check_timeout_audio(void)
 {
@@ -407,6 +409,7 @@ static void audio_boost_work(struct work_struct *work_struct)
 	USB_BOOST_NOTICE("audio_boost, end of work\n");
 }
 
+#if IS_ENABLED(CONFIG_USB_MTK_HDRC)
 static void vh_sound_usb_support_cpu_suspend(void *unused,
 	struct usb_device *udev, int direction, bool *is_support)
 {
@@ -415,6 +418,7 @@ static void vh_sound_usb_support_cpu_suspend(void *unused,
 	update_time_audio();
 	audio_boost_inst.request_func(0);
 }
+#endif
 
 static void default_setting(void)
 {

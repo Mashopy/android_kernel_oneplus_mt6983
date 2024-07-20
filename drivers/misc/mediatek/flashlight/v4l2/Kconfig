@@ -63,4 +63,13 @@ config MTK_VIDEO_AW36518
 	  This is a driver for the ktd2687 dual flash controllers. It controls
 	  flash, torch LEDs.
 
+config MTK_VIDEO_LM3642_22823
+	tristate "LM3642 flash driver support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on MEDIA_CAMERA_SUPPORT
+	select REGMAP_I2C
+	help
+	  This is a driver for the lm3642_22823 flash controllers. It controls
+	  flash, torch LEDs.
+
 	  Say M here if you want to compile this driver as a module.

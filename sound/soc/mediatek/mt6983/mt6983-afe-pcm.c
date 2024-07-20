@@ -1490,6 +1490,9 @@ static const struct snd_kcontrol_new memif_ul1_ch1_mix[] = {
 				    I_ADDA_UL_CH2, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH3", AFE_CONN21,
 				    I_ADDA_UL_CH3, 1, 0),
+	/* add for supporting aec record*/
+	SOC_DAPM_SINGLE_AUTODISABLE("DL4_CH1", AFE_CONN21_1,
+					I_DL4_CH1, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("ETDM_CH3", AFE_CONN21_1,
 			    I_ETDM_IN_CH3, 1, 0),
 };
@@ -1503,6 +1506,9 @@ static const struct snd_kcontrol_new memif_ul1_ch2_mix[] = {
 				    I_ADDA_UL_CH3, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH4", AFE_CONN22,
 				    I_ADDA_UL_CH4, 1, 0),
+	/* add for supporting aec record*/
+	SOC_DAPM_SINGLE_AUTODISABLE("DL4_CH2", AFE_CONN22_1,
+					I_DL4_CH2, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("ETDM_CH4", AFE_CONN22_1,
 				    I_ETDM_IN_CH4, 1, 0),
 };
@@ -2303,6 +2309,10 @@ static const struct snd_soc_dapm_route mt6983_memif_routes[] = {
 
 	{"HW_GAIN2_IN_CH1", "ADDA_UL_CH1", "ADDA_UL_Mux"},
 	{"HW_GAIN2_IN_CH2", "ADDA_UL_CH2", "ADDA_UL_Mux"},
+	/* add for supporting aec record*/
+	{"UL1_CH1", "DL4_CH1", "Hostless_UL1 UL"},
+	{"UL1_CH2", "DL4_CH2", "Hostless_UL1 UL"},
+	{"Hostless_UL1 UL", NULL, "UL1_VIRTUAL_INPUT"},
 
 	{"UL11", NULL, "CM1_UL_MUX"},
 	{"UL10", NULL, "CM1_UL_MUX"},
@@ -7790,6 +7800,7 @@ static int mt6983_afe_pcm_dev_probe(struct platform_device *pdev)
 		afe->memif[i].const_irq = 1;
 	}
 	afe->memif[MT6983_DEEP_MEMIF].ack = mtk_sp_clean_written_buffer_ack;
+	afe->memif[MT6983_DEEP_MEMIF].fast_palyback = 1;
 
 	/* init arm_smccc_smc call */
 	arm_smccc_smc(MTK_SIP_AUDIO_CONTROL, MTK_AUDIO_SMC_OP_INIT,

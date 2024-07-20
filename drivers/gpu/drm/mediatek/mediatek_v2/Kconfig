@@ -62,3 +62,12 @@ config MTK_MT6382_BDG
 	  BridgeIC 6382 can support VESA-1.2 DSC, compressing display framedata
 	  Normal project will disable it first
 	  If you are not sure about this, do not set it to y
+
+config MTK_ROUND_CORNER_SUPPORT
+       bool "enable medietak display round corner"
+       default n
+       help
+         define CONFIG_MTK_ROUND_CORNER_SUPPORT to enable Mediatek Round Corner on display.
+         If you want to use Meditek Round Corner on display, please make sure it is Y in xxx_defconfig.mk.
+         This feature require round corner pattern provided in lcm driver folder.
+         If unsure, set N.

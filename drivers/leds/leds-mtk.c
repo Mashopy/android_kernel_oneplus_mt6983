@@ -27,6 +27,10 @@
 static int mtk_set_brightness(struct led_classdev *led_cdev,
 					 enum led_brightness brightness);
 
+#ifdef OPLUS_FEATURE_DISPLAY_APOLLO
+static enum led_brightness apollo_get_brightness(struct led_classdev *led_cdev);
+#endif /* OPLUS_FEATURE_DISPLAY_APOLLO */
+
 struct mt_leds_desp_info {
 	int lens;
 	struct led_desp *leds[0];
@@ -251,8 +255,21 @@ static int mtk_set_hw_brightness(struct mt_led_data *led_dat,
 	pr_debug("set hw brightness: %d -> %d", led_dat->hw_brightness, brightness);
 
 	brightness = min(brightness, led_dat->conf.limit_hw_brightness);
+#ifdef OPLUS_FEATURE_DISPLAY_APOLLO
+	if (!(oplus_apollo_supported())) {
+		if (brightness == led_dat->hw_brightness) {
+			led_dat->repeat_count += 1;
+			if (led_dat->repeat_count > 1)
+				return 0;
+		} else {
+			led_dat->repeat_count = 0;
+		}
+	}
+	pr_info("set hw brightness(%s): %d -> %d", led_dat->conf.cdev.name, led_dat->hw_brightness, brightness);
+#else
 	if (brightness == led_dat->hw_brightness)
 		return 0;
+#endif
 
 	if (led_dat->mtk_hw_brightness_set(led_dat, brightness) >= 0) {
 		led_dat->hw_brightness = brightness;
@@ -308,8 +325,15 @@ static int mtk_set_brightness(struct led_classdev *led_cdev,
 		led_dat->mtk_conn_id_get(led_dat, led_dat->desp.index);
 	}
 
+#ifdef OPLUS_FEATURE_DISPLAY_APOLLO
+	if (!(oplus_apollo_supported())) {
+		if (led_dat->last_brightness == brightness)
+			return 0;
+	}
+#else
 	if (led_dat->last_brightness == brightness)
 		return 0;
+#endif /* OPLUS_FEATURE_DISPLAY_APOLLO */
 
 	led_dat->last_brightness = brightness;
 
@@ -317,6 +341,23 @@ static int mtk_set_brightness(struct led_classdev *led_cdev,
 
 	led_debug_log(led_dat, brightness, trans_level);
 
+#ifdef OPLUS_FEATURE_DISPLAY_APOLLO
+	if (oplus_apollo_supported()) {
+		mutex_lock(&led_dat->led_access);
+		mtk_set_hw_brightness(led_dat, trans_level);
+		led_dat->last_hw_brightness = trans_level;
+		mBrightnessValue = trans_level;
+		mutex_unlock(&led_dat->led_access);
+	} else {
+		call_notifier(LED_BRIGHTNESS_CHANGED, led_conf);
+		mutex_lock(&led_dat->led_access);
+		if (!led_conf->aal_enable) {
+			mtk_set_hw_brightness(led_dat, trans_level);
+			led_dat->last_hw_brightness = trans_level;
+		}
+		mutex_unlock(&led_dat->led_access);
+	}
+#else
 	mutex_lock(&led_dat->led_access);
 	if (!led_conf->aal_enable) {
 		mtk_set_hw_brightness(led_dat, trans_level);
@@ -325,9 +366,28 @@ static int mtk_set_brightness(struct led_classdev *led_cdev,
 	mutex_unlock(&led_dat->led_access);
 
 	call_notifier(LED_BRIGHTNESS_CHANGED, led_conf);
+#endif /* OPLUS_FEATURE_DISPLAY_APOLLO */
 	return 0;
 
 }
+
+#ifdef OPLUS_FEATURE_DISPLAY_APOLLO
+static enum led_brightness apollo_get_brightness(struct led_classdev *led_cdev)
+{
+	return mBrightnessValue;
+}
+
+void apollo_set_brightness_for_show(unsigned int level)
+{
+	mBrightnessValue = level;
+}
+EXPORT_SYMBOL(apollo_set_brightness_for_show);
+
+bool oplus_apollo_supported() {
+	return mApolloEnable;
+}
+EXPORT_SYMBOL(oplus_apollo_supported);
+#endif /* OPLUS_FEATURE_DISPLAY_APOLLO */
 
 
 /****************************************************************************
@@ -423,6 +483,17 @@ int mt_leds_parse_dt(struct mt_led_data *mdev, struct fwnode_handle *fwnode)
 		mdev->conf.min_brightness = 1;
 	}
 
+#ifdef OPLUS_FEATURE_DISPLAY_APOLLO
+	ret = fwnode_property_read_string(fwnode, "apollo-state", &state);
+	if (!ret) {
+		if (!strncmp(state, "on", strlen("on")))
+			mApolloEnable = true;
+		else
+			mApolloEnable = false;
+	} else {
+		mApolloEnable = false;
+	}
+#endif /* OPLUS_FEATURE_DISPLAY_APOLLO */
 	strlcpy(mdev->desp.name, mdev->conf.cdev.name,
 		sizeof(mdev->desp.name));
 	mdev->desp.index = leds_info->lens;
@@ -443,6 +514,17 @@ int mt_leds_parse_dt(struct mt_led_data *mdev, struct fwnode_handle *fwnode)
 	mdev->conf.aal_enable = 0;
 	mutex_init(&mdev->led_access);
 
+#ifdef OPLUS_FEATURE_DISPLAY_APOLLO
+	pr_info("parse led: %s, num: %d, connector_id: %d, max: %d, min: %d, max_hw: %d, brightness: %d, apollo_enable: %s",
+		mdev->conf.cdev.name,
+		leds_info->lens,
+		mdev->conf.connector_id,
+		mdev->conf.cdev.max_brightness,
+		mdev->conf.min_brightness,
+		mdev->conf.max_hw_brightness,
+		mdev->conf.cdev.brightness,
+		mApolloEnable ? "true" : "false");
+#else
 	pr_info("parse led: %s, num: %d, connector_id: %d, max: %d, min: %d, max_hw: %d, brightness: %d",
 		mdev->conf.cdev.name,
 		leds_info->lens,
@@ -451,6 +533,7 @@ int mt_leds_parse_dt(struct mt_led_data *mdev, struct fwnode_handle *fwnode)
 		mdev->conf.min_brightness,
 		mdev->conf.max_hw_brightness,
 		mdev->conf.cdev.brightness);
+#endif /* OPLUS_FEATURE_DISPLAY_APOLLO */
 
 	return 0;
 }
@@ -481,6 +564,11 @@ int mt_leds_classdev_register(struct device *parent,
 	led_dat->conf.cdev.flags = LED_CORE_SUSPENDRESUME;
 	led_dat->conf.flags = LED_MT_BRIGHTNESS_HW_CHANGED | LED_MT_BRIGHTNESS_CHANGED;
 	led_dat->conf.cdev.brightness_set_blocking = mtk_set_brightness;
+#ifdef OPLUS_FEATURE_DISPLAY_APOLLO
+	if (oplus_apollo_supported()) {
+		led_dat->conf.cdev.brightness_get = apollo_get_brightness;
+	}
+#endif /* OPLUS_FEATURE_DISPLAY_APOLLO */
 #ifdef CONFIG_LEDS_MT_BRIGHTNESS_HW_CHANGED
 	led_dat->conf.brightness_hw_changed = -1;
 #endif
@@ -513,8 +601,13 @@ int mt_leds_classdev_register(struct device *parent,
 	if (led_dat->mtk_conn_id_get(led_dat, 1) >= 0)
 		pr_notice("get connector id failed!");
 
+/*#ifndef OPLUS_BUG_STABILITY
 	mtk_set_hw_brightness(led_dat,
 		brightness_maptolevel(&led_dat->conf, led_dat->last_brightness));
+#endif OPLUS_BUG_STABILITY*/
+#ifdef OPLUS_FEATURE_DISPLAY
+	led_dat->repeat_count = 0;
+#endif /* OPLUS_FEATURE_DISPLAY */
 
 	pr_info("%s devm_led_classdev_register end! ", led_dat->conf.cdev.name);
 

@@ -3077,7 +3077,7 @@ static int mtk_raw_available_resource(struct mtk_raw *raw)
 				res_status |= 1 << j;
 		}
 	}
-	dev_dbg(raw->cam_dev, "%s raw_status:0x%x Available Engine:A/B/C:%d/%d/%d\n",
+	dev_info(raw->cam_dev, "%s raw_status:0x%x Available Engine:A/B/C:%d/%d/%d\n",
 		 __func__, res_status,
 			!(res_status & (1 << MTKCAM_SUBDEV_RAW_0)),
 			!(res_status & (1 << MTKCAM_SUBDEV_RAW_1)),
@@ -3304,7 +3304,11 @@ int mtk_cam_raw_select(struct mtk_cam_ctx *ctx,
 			selected = true;
 		}
 	} else if (pipe->res_config.raw_num_used == 2) {
+		#ifdef OPLUS_FEATURE_CAMERA_COMMON
+		for (m = MTKCAM_SUBDEV_RAW_0; m < MTKCAM_SUBDEV_RAW_2; m++) {
+		#else
 		for (m = MTKCAM_SUBDEV_RAW_0; m >= MTKCAM_SUBDEV_RAW_0; m--) {
+		#endif
 			mask = (1 << m) | (1 << (m + 1));
 			if (!(raw_status & mask)) {
 				pipe->enabled_raw |= mask;
@@ -6021,7 +6025,7 @@ static int mtk_raw_pipeline_register(unsigned int id, struct device *dev,
 	int ret;
 
 	pipe->id = id;
-	pipe->dynamic_exposure_num_max = 3;
+	pipe->dynamic_exposure_num_max = 1;
 
 	/* Initialize subdev */
 	v4l2_subdev_init(sd, &mtk_raw_subdev_ops);

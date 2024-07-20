@@ -8,6 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 &mmc1 {
+/*#ifndef OPLUS_BUG_STABILITY
 	host-index = <1>;
 	status = "okay";
 	pinctrl-names = "default", "state_uhs";
@@ -32,10 +33,13 @@
 	no-sdio;
 	no-mmc;
 //	non-removable;
+#endif OPLUS_BUG_STABILITY*/
+
 	dvfsrc-vcore-supply = <&dvfsrc_vcore>;
 	req-vcore = <725000>;
 };
 
+/*#ifndef OPLUS_BUG_STABILITY
 &mmc2 {
 	host-index = <2>;
 	status = "disabled";
@@ -58,6 +62,7 @@
 	cap-sdio-irq;
 	non-removable;
 };
+#endif OPLUS_BUG_STABILITY*/
 
 &pio {
 	mmc1_pins_default: mmc1default {

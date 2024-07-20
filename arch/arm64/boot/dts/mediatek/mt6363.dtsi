@@ -106,8 +106,13 @@
 
 		mt6363keys: mt6363keys {
 			compatible = "mediatek,mt6363-keys";
+/*#ifdef OPLUS_BUG_STABILITY*/
+			mediatek,long-press-mode = <2>;
+			power-off-time-sec = <1>;
+/*#else
 			mediatek,long-press-mode = <1>;
 			power-off-time-sec = <0>;
+#endif OPLUS_BUG_STABILITY*/
 
 			power {
 				linux,keycodes = <116>;
@@ -291,7 +296,10 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-enable-ramp-delay = <240>;
 				regulator-allowed-modes = <0 2>;
+/*#ifndef OPLUS_BUG_STABILITY
 				regulator-always-on;
+#endif OPLUS_BUG_STABILITY*/
+
 			};
 			mt6363_vcn15: VCN15 {
 				regulator-compatible = "VCN15";
@@ -304,8 +312,13 @@
 			mt6363_vufs18: VUFS18 {
 				regulator-compatible = "VUFS18";
 				regulator-name = "mt6363_vufs18";
+/*#ifdef OPLUS_BUG_STABILITY*/
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+/*#else
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <2100000>;
+#endif OPLUS_BUG_STABILITY*/
 				regulator-enable-ramp-delay = <680>;
 				regulator-allowed-modes = <0 2>;
 			};

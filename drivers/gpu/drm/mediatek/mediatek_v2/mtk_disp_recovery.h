@@ -22,6 +22,9 @@ struct mtk_drm_esd_ctx {
 	atomic_t int_te_event;
 	atomic_t check_wakeup;
 	atomic_t target_time;
+#ifdef OPLUS_FEATURE_DISPLAY
+	atomic_t target_flag;
+#endif /* OPLUS_FEATURE_DISPLAY */
 	int eint_irq;
 	u32 chk_active;
 	u32 chk_mode;
